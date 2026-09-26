@@ -3,6 +3,31 @@
 #define PATHFINDER_FOR_DUMBS_INCLUDE
 #ifdef _CSTDLIB_
 
+/**********************************************************************
+SPoint2u = uint16_t x,y
+CPathArray = Array class for finded path
+CDumbPather = understend)
+
+Use: 
+		SomeMapClass Map;
+		SPoint2u points[2] = {
+			{ unit_start_XY_position },
+			{ unit_end_XY_position }
+		};
+		u_1b** MapCellsMatrix =  Map.getCellsMatix();
+		u_2b   MapSize		  =  Map.getSize();
+
+		pthfd::CDumbPather PathManager;
+		pthfd::CPathArray UnitFindedPath;
+
+		PathManager.SetByteMap( MapCellsMatrix, MapSize );
+		PathManager.Find(points, &UnitFindedPath);
+
+		for(int i=0; i<UnitFindedPath.Length()) 
+			SomeStepProcedure(UnitFindedPath[i]);
+**********************************************************************/
+
+
 #ifdef _MSC_VER
 #ifndef _DEBUG
 #pragma warning( disable : 4786 )	// Debugger truncating names.
@@ -81,8 +106,8 @@ namespace pthfd {
 		~CPathArray() { if (length_) delete[] array_; }
 		template <std::integral IntType>
 		__forceinline const SPoint2u& operator[](IntType i) const { return array_[i]; }
-		__forceinline const u_4b length() const { return length_; }
-		__forceinline void clear() { 
+		__forceinline const u_4b Length() const { return length_; }
+		__forceinline void Clear() { 
 			if (length_) {
 				delete[] array_;
 				array_ = nullptr;
@@ -130,7 +155,7 @@ namespace pthfd {
 		public:
 			CVector() : m_allocated(8), m_size(0) { m_buf = reinterpret_cast<T*>(malloc(8*sizeof(T))); }
 			~CVector() { free(m_buf); }
-			__forceinline void clear() { m_size = 0; }	// see warning above
+			__forceinline void Clear() { m_size = 0; }	// see warning above
 			__forceinline void resize(u_4b s) { capacity(s); m_size = s; }
 			__forceinline void push_back(const T& t) { capacity(m_size + 1); m_buf[m_size++] = t; }
 			__forceinline u_4b size() const { return m_size; }
@@ -374,7 +399,7 @@ namespace pthfd {
 				SiftUp(n->heapIndex);
 				SiftDown(n->heapIndex);
 			}
-			__forceinline void Clear() { heap_.clear(); }
+			__forceinline void Clear() { heap_.Clear(); }
 			__forceinline void Push(CPathNode* n) {
 				n->heapIndex = heap_.size();
 				heap_.push_back(n);
@@ -523,7 +548,7 @@ namespace pthfd {
 			CVector<u_4b>& path = *_path;
 			CPathNode* it = node;
 			i_4b count = 1;
-			path.clear();
+			path.Clear();
 			while (it->parent) {
 				++count;
 				it = it->parent;
@@ -583,7 +608,7 @@ namespace pthfd {
 			}
 		}
 		__forceinline i_4b Search(u_4b startNode, u_4b endNode, CVector< u_4b >* path, u_4b* cost) {
-			path->clear();
+			path->Clear();
 			*cost = 0;
 			if (startNode == endNode) return AT_THE_END;
 			++finder_frame_;
@@ -641,7 +666,7 @@ namespace pthfd {
 			SPoint2u& end = se[1];
 			SPoint2u*& path = path_class->array_;
 			u_4b& length = path_class->length_;
-			path_class->clear();
+			path_class->Clear();
 			{
 				Bool end_unvalid   = !(end.y   < map_size_ && end.x   < map_size_ ? map_cells_[ end.y ][ end.x ] != TerrainType::BLOKABLE : false);
 				Bool start_unvalid = !(start.y < map_size_ && start.x < map_size_ ? map_cells_[start.y][start.x] != TerrainType::BLOKABLE : false);
@@ -668,10 +693,6 @@ namespace pthfd {
 		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) { 
 			map_cells_ = map_data;
 			map_size_ = map_size;
-			pathNodePool_.Clear();
-			finder_frame_ = 0;
-		}
-		__forceinline void ResetNodes() {
 			pathNodePool_.Clear();
 			finder_frame_ = 0;
 		}

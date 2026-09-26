@@ -21,14 +21,14 @@ static void BroadCallback(i_4b key, i_4b scancode, i_4b action, i_4b mods) {
 static void DrawPath(pthfd::CPathArray* path_ptr, i_4b size) {
 	if (!path_ptr) return;
 	pthfd::CPathArray& path = *path_ptr;
-	if (path.length() < 2) return;
+	if (path.Length() < 2) return;
 	SPoint2u p1{};
 	SPoint2u p2{};
 	f_4b p1_X, p1_Y, p2_X, p2_Y;
 	glColor3f(1.0f, 0.2f, 0.2f);
 	glLineWidth(2.0f);
 	glBegin(GL_LINE_STRIP);
-	for (u_4b i = 1; i < path.length(); ++i) {
+	for (u_4b i = 1; i < path.Length(); ++i) {
 		p1.x = path[i - 1].x;
 		p1.y = path[i - 1].y;
 		p2.x = path[i].x;
@@ -108,10 +108,10 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 					};
 					f_8b t_arr = Win.time();
 					Pth.Find(start_end_path, &path_arr);
-					if (path_arr.length() > 0) {
+					if (path_arr.Length() > 0) {
 						t_arr = Win.time() - t_arr;
 						std::cout << "PathArray: s-e[" << start_end_path[0].x << ";" << start_end_path[0].y << " > " << start_end_path[1].x << ";" << start_end_path[1].y << "] path" <<
-							path_arr.length() << "  [ " << sizeof(void*) + path_arr.length() * sizeof(SPoint2u) << " Byte ] Time: " << t_arr << std::endl;
+							path_arr.Length() << "  [ " << sizeof(void*) + path_arr.Length() * sizeof(SPoint2u) << " Byte ] Time: " << t_arr << std::endl;
 					}
 					else {
 						std::cout << "PathArrayFinding: FAIL!" << std::endl;
@@ -133,7 +133,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 			}
 			glPushMatrix();
 			Img.draw(-1.0f, -1.0f);
-			if(path_arr.length()>0) DrawPath( &path_arr, size);
+			if(path_arr.Length()>0) DrawPath( &path_arr, size);
 			glPopMatrix();
 			Win.swap();
 		}

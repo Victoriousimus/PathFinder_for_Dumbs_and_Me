@@ -198,20 +198,19 @@ namespace pthfd {
 				Block* nextBlock;
 				CPathNode pathNode[1];
 			};
-			CPathNode** hashTable;
-			Block* firstBlock;
-			Block* blocks;
-
-			NodeCost* cache;
-			i_4b		cacheCap;
-			i_4b		cacheSize;
-
 			CPathNode	freeMemSentinel;
-			const u_4b	allocate = CACHBLOCK;				// how big a block of pathnodes to allocate at once
+			u_4b		totalCollide;
 			u_4b		nAllocated;				// number of pathnodes allocated (from Alloc())
 			u_4b		nAvailable;				// number available for allocation
 			u_4b		hashShift;
-			u_4b		totalCollide;
+
+			CPathNode** hashTable;
+			Block*		firstBlock;
+			Block*		blocks;
+
+			NodeCost*	cache;
+			i_4b		cacheCap;
+			i_4b		cacheSize;
 
 			__forceinline u_4b HashSize() { return 1 << hashShift; }
 			__forceinline u_4b HashMask() { return ((1 << hashShift) - 1); }
@@ -227,10 +226,10 @@ namespace pthfd {
 				else { hashTable[key] = root; }
 			}
 			__forceinline Block* NewBlock() {
-				Block* block = reinterpret_cast<Block*>(calloc(1, sizeof(Block) + sizeof(CPathNode) * (allocate - 1)));
+				Block* block = reinterpret_cast<Block*>(calloc(1, sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1)));
 				block->nextBlock = 0;
-				nAvailable += allocate;
-				for (u_4b i = 0; i < allocate; ++i)
+				nAvailable += CACHBLOCK;
+				for (u_4b i = 0; i < CACHBLOCK; ++i)
 					freeMemSentinel.AddBefore(&block->pathNode[i]);
 				return block;
 			}
@@ -250,14 +249,14 @@ namespace pthfd {
 			CPathPool(u_4b _typicalAdjacent)
 				: firstBlock(0), blocks(0), nAllocated(0), nAvailable(0) {
 				freeMemSentinel.InitSentinel();
-				cacheCap = allocate * _typicalAdjacent;
+				cacheCap = CACHBLOCK * _typicalAdjacent;
 				cacheSize = 0;
 				cache = reinterpret_cast<NodeCost*>(malloc(cacheCap * sizeof(NodeCost)));
 				hashShift = 3;	// 8 (only useful for stress testing) 
-				while (HashSize() < allocate) ++hashShift;
+				while (HashSize() < CACHBLOCK) ++hashShift;
 				hashTable = reinterpret_cast<CPathNode**>(calloc(HashSize(), sizeof(CPathNode*)));
 				blocks = firstBlock = NewBlock();
-				//	printf( "HashSize=%d allocate=%d\n", HashSize(), allocate );
+				//	printf( "HashSize=%d CACHBLOCK=%d\n", HashSize(), CACHBLOCK );
 				totalCollide = 0;
 			}
 			~CPathPool() {
@@ -281,11 +280,11 @@ namespace pthfd {
 					freeMemSentinel.prev = &freeMemSentinel;
 
 					memset(hashTable, 0, sizeof(CPathNode*) * HashSize());
-					for (u_4b i = 0; i < allocate; ++i) {
+					for (u_4b i = 0; i < CACHBLOCK; ++i) {
 						freeMemSentinel.AddBefore(&firstBlock->pathNode[i]);
 					}
 				}
-				nAvailable = allocate;
+				nAvailable = CACHBLOCK;
 				nAllocated = 0;
 				cacheSize = 0;
 			}
@@ -303,7 +302,7 @@ namespace pthfd {
 					root = (_state < root->state) ? root->child[0] : root->child[1];
 				}
 				if (!root) {
-					// allocate new one
+					// CACHBLOCK new one
 					root = Alloc();
 					root->Clear();
 					root->Init(frame_, _state, _costFromStart, _estToGoal, _parent);
@@ -330,7 +329,7 @@ namespace pthfd {
 			{
 				for (Block* b = blocks; b; b = b->nextBlock)
 				{
-					for (u_4b i = 0; i < allocate; ++i)
+					for (u_4b i = 0; i < CACHBLOCK; ++i)
 					{
 						if (b->pathNode[i].frame_ == frame_)
 							stateVec->push_back(b->pathNode[i].state);

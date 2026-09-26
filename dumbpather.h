@@ -450,6 +450,7 @@ namespace pthfd {
 				(s.y > e.y ? static_cast<u_4b>(s.y - e.y) : static_cast<u_4b>(e.y - s.y)) ) << 7;
 		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<StateCost>* neighbors) {
+			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
 			SPoint2u e, s = SPoint2u{ static_cast<u_2b>(state % map_size_), static_cast<u_2b>(state / map_size_) };
 			//----------------------------------------------------------------------
 			e.y = --s.y;

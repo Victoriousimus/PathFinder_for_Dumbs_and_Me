@@ -79,13 +79,15 @@ Use:
 	typedef float f_4b;
 	typedef double f_8b;
 
+
 	struct SU2b_xy {
 		u_2b x;
 		u_2b y;
 	};
-	#define SPoint2u SU2b_xy
 
 #endif
+
+#define SPoint2u SU2b_xy
 
 namespace pthfd {
 	//======================================================================
@@ -381,10 +383,11 @@ namespace pthfd {
 				const u_4b n = heap_.Size();
 				u_4b tree_point{}, best{}, end{};
 				while (true) {
-					tree_point = i * 4 + 1;
+					tree_point = (i << 2) + 1;
 					if (tree_point >= n) break;
 					best = tree_point;
-					end = (tree_point + 4) < n ? tree_point + 4 : n;
+					end  = (tree_point + 4);
+					if( end >= n ) end = n;
 					for (u_4b k = tree_point + 1; k < end; ++k) {
 						if (heap_[k]->totalCost < heap_[best]->totalCost) 
 							best = k;

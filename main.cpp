@@ -3,10 +3,10 @@
 //#define SCALET 0.035f
 #define SCALEF 1.0f
 struct mainGlobalVaribles{
-	i_2b mause_X{};
-	i_2b mause_Y{};
-	i_1b button{};
-	Bool update = false;
+	i_2b mause_X{0};
+	i_2b mause_Y{0};
+	i_1b button{0};
+	Bool update{ false };
 } GV;
 static void MouseCallback(i_4b button, i_4b action, i_4b x, i_4b y) {
 	if (!action) return;
@@ -43,16 +43,47 @@ static void DrawPath(pthfd::CPathArray* path_ptr, i_4b size) {
 	glEnd();
 }
 
+void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, u_4b iter_count) {
+	f_8b accum,find_time;
+	accum = 0.0f;
+	find_time = 0.0f;
+	SPoint2u se[2] = {0};
+	se[0] = ise[0]; se[1] = ise[1];
+	for (i_4b i = 0; i < iter_count; ++i) {
+		f_8b find_time = win.time();
+		finder.Find(se, path);
+		find_time = win.time() - find_time;
+		accum += find_time;
+	}
+	std::cout << "MOVE ( x" 
+		<< se[0].x << "; y" << se[0].y << " ) to ( x" 
+		<< se[1].x << "; y" << se[1].y << " )  -  [ "
+		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
+		<< std::endl;
+
+	accum = 0.0f;
+	find_time = 0.0f;
+	se[0] = ise[1]; se[1] = ise[0];
+	for (i_4b i = 0; i < iter_count; ++i) {
+		f_8b find_time = win.time();
+		finder.Find(se, path);
+		find_time = win.time() - find_time;
+		accum += find_time;
+	}
+	std::cout << "MOVE ( x" 
+		<< se[0].x << "; y" << se[0].y << " ) to ( x"
+		<< se[1].x << "; y" << se[1].y << " )  -  [ "
+		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
+		<< std::endl;
+}
+
 i_4b main(i_4b argc, c_wrd argv[]) {
 	CStbImg Img;
 	CWindow Win;
 	SMap_8b Map;
 	i_2b window_size;
 	i_2b size;
-	SPoint2u start_end_path[2] = {
-		{  27, 47 },
-		{ 116, 30 }
-	};
+	SPoint2u start_end_path[2];
 
 	size = Img.load("map_smpl_0.png", SCALEF);
 	if (size < 1) std::cout << "ERROR_LOAD_IMG";
@@ -69,29 +100,10 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 		pthfd::CDumbPather Pth;
 		pthfd::CPathArray path_arr;
 		Pth.SetByteMap(Map.cell, Map.size_);
-		GV.update = false;
 
-		f_8b accum = 0.0f;
-
-		start_end_path[0] = { 46, 284 };
-		start_end_path[1] = { 195, 18 };
-		for (i_4b i = 0; i < 128; ++i) {
-			f_8b find_time = Win.time();
-			Pth.Find(start_end_path, &path_arr);
-			find_time = Win.time() - find_time;
-			accum += find_time;
-		}
-		std::cout << "FRONT Mid_TIME[" << static_cast<i_4b>(accum) << "]: " << accum / 128.0f << std::endl;
-
-		start_end_path[0] = { 195, 18 };
-		start_end_path[1] = { 46, 284 };
-		for (i_4b i = 0; i < 128; ++i) {
-			f_8b find_time = Win.time();
-			Pth.Find(start_end_path, &path_arr);
-			find_time = Win.time() - find_time;
-			accum += find_time;
-		}
-		std::cout << "BACK  Mid_TIME[" << static_cast<i_4b>(accum) << "]: " << accum / 128.0f << std::endl;
+		start_end_path[0] = { 52, 119 };
+		start_end_path[1] = { 206, 90 };
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 256);
 
 		while (!Win.window_close()) {
 			if (GV.update) {

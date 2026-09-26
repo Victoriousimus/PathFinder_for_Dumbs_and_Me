@@ -27,7 +27,6 @@ Use:
 			SomeStepProcedure(UnitFindedPath[i]);
 **********************************************************************/
 
-
 #ifdef _MSC_VER
 #ifndef _DEBUG
 #pragma warning( disable : 4786 )	// Debugger truncating names.

@@ -156,9 +156,9 @@ namespace pthfd {
 			CVector() : m_allocated(8), m_size(0) { m_buf = reinterpret_cast<T*>(malloc(8*sizeof(T))); }
 			~CVector() { free(m_buf); }
 			__forceinline void Clear() { m_size = 0; }	// see warning above
-			__forceinline void resize(u_4b s) { capacity(s); m_size = s; }
-			__forceinline void push_back(const T& t) { capacity(m_size + 1); m_buf[m_size++] = t; }
-			__forceinline u_4b size() const { return m_size; }
+			__forceinline void Resize(u_4b s) { capacity(s); m_size = s; }
+			__forceinline void PushBack(const T& t) { capacity(m_size + 1); m_buf[m_size++] = t; }
+			__forceinline u_4b Size() const { return m_size; }
 			__forceinline T& operator[](u_4b i) { return m_buf[i]; }
 		};
 		class CPathNode final {
@@ -347,7 +347,7 @@ namespace pthfd {
 				}
 				return false;
 			}
-			__forceinline void GetCache(i_4b start, i_4b nNodes, NodeCost* nodes) {
+			__forceinline void GetCache(i_4b start, i_4b nNodes, NodeCost* nodes) const {
 				memcpy(nodes, &cache[start], sizeof(NodeCost) * nNodes);
 			}
 			__forceinline void AllStates(u_4b frame_, CVector< u_4b >* stateVec)
@@ -357,7 +357,7 @@ namespace pthfd {
 					for (u_4b i = 0; i < CACHBLOCK; ++i)
 					{
 						if (b->pathNode[i].frame_ == frame_)
-							stateVec->push_back(b->pathNode[i].state);
+							stateVec->PushBack(b->pathNode[i].state);
 					}
 				}
 			}
@@ -365,8 +365,6 @@ namespace pthfd {
 		class COpenQueue final {
 		private:
 			CVector<CPathNode*> heap_;
-			static constexpr u_4b D = 4;
-
 			__forceinline void SiftUp(u_4b i) {
 				CPathNode* x = heap_[i];
 				while (i > 0) {
@@ -380,15 +378,19 @@ namespace pthfd {
 			}
 			__forceinline void SiftDown(u_4b i) {
 				CPathNode* x = heap_[i];
-				const u_4b n = heap_.size();
+				const u_4b n = heap_.Size();
+				u_4b tree_point{}, best{}, end{};
 				while (true) {
-					u_4b c = i * D + 1;
-					if (c >= n) break;
-					u_4b best = c;
-					u_4b end = (c + D < n) ? c + D : n;
-					for (u_4b k = c + 1; k < end; ++k)
-						if (heap_[k]->totalCost < heap_[best]->totalCost) best = k;
-					if (heap_[best]->totalCost >= x->totalCost) break;
+					tree_point = i * 4 + 1;
+					if (tree_point >= n) break;
+					best = tree_point;
+					end = (tree_point + 4) < n ? tree_point + 4 : n;
+					for (u_4b k = tree_point + 1; k < end; ++k) {
+						if (heap_[k]->totalCost < heap_[best]->totalCost) 
+							best = k;
+					}
+					if (heap_[best]->totalCost >= x->totalCost) 
+						break;
 					heap_[i] = heap_[best]; heap_[i]->heapIndex = i;
 					i = best;
 				}
@@ -401,24 +403,24 @@ namespace pthfd {
 			}
 			__forceinline void Clear() { heap_.Clear(); }
 			__forceinline void Push(CPathNode* n) {
-				n->heapIndex = heap_.size();
-				heap_.push_back(n);
+				n->heapIndex = heap_.Size();
+				heap_.PushBack(n);
 				SiftUp(n->heapIndex);
 				n->inOpen = 1;
 			}
-			__forceinline Bool Empty() const { return heap_.size() == 0; }
+			__forceinline Bool Empty() const { return heap_.Size() == 0; }
 			__forceinline CPathNode* Pop() {
 				CPathNode* top = heap_[0];
-				const u_4b sz = heap_.size();
+				const u_4b sz = heap_.Size();
 				if (sz > 1) {
 					CPathNode* last = heap_[sz - 1];
-					heap_.resize(sz - 1);
+					heap_.Resize(sz - 1);
 					heap_[0] = last;
 					last->heapIndex = 0;
 					SiftDown(0);
 				}
 				else {
-					heap_.resize(0);
+					heap_.Resize(0);
 				}
 				top->inOpen = 0;
 				top->heapIndex = MAXIMAL;
@@ -433,7 +435,7 @@ namespace pthfd {
 		CVector< StateCost >	statesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< NodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< u_4b >			costsVec_;
-		u_4b finder_frame_;			// incremented with every solve, used to determine if cached data needs to be refreshed
+		u_4b finder_frame_;						// incremented with every solve, used to determine if cached data needs to be refreshed
 		//======================================================================
 		i_1b** map_cells_;
 		u_2b map_size_;
@@ -456,9 +458,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_DIAG, indx });
+							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
-							neighbors->push_back({ FAST_DIAG, indx });
+							neighbors->PushBack({ FAST_DIAG, indx });
 					}
 				}
 				++e.x;
@@ -466,9 +468,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_LINE, indx });
+							neighbors->PushBack({ SLOW_LINE, indx });
 						else
-							neighbors->push_back({ FAST_LINE, indx });
+							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
 				++e.x;
@@ -476,9 +478,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_DIAG, indx });
+							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
-							neighbors->push_back({ FAST_DIAG, indx });
+							neighbors->PushBack({ FAST_DIAG, indx });
 					}
 				}
 			}
@@ -491,9 +493,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_LINE, indx });
+							neighbors->PushBack({ SLOW_LINE, indx });
 						else
-							neighbors->push_back({ FAST_LINE, indx });
+							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
 				e.x += 2;
@@ -501,9 +503,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_LINE, indx });
+							neighbors->PushBack({ SLOW_LINE, indx });
 						else
-							neighbors->push_back({ FAST_LINE, indx });
+							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
 			}
@@ -516,9 +518,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_DIAG, indx });
+							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
-							neighbors->push_back({ FAST_DIAG, indx });
+							neighbors->PushBack({ FAST_DIAG, indx });
 					}
 				}
 				++e.x;
@@ -526,9 +528,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_LINE, indx });
+							neighbors->PushBack({ SLOW_LINE, indx });
 						else
-							neighbors->push_back({ FAST_LINE, indx });
+							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
 				++e.x;
@@ -536,9 +538,9 @@ namespace pthfd {
 				if (e.x < map_size_) {
 					if (line[e.x] != TerrainType::BLOKABLE) {
 						if (line[e.x] == TerrainType::SLOWABLE)
-							neighbors->push_back({ SLOW_DIAG, indx });
+							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
-							neighbors->push_back({ FAST_DIAG, indx });
+							neighbors->PushBack({ FAST_DIAG, indx });
 					}
 				}
 			}
@@ -554,12 +556,12 @@ namespace pthfd {
 				it = it->parent;
 			}
 			if (count < 3) {
-				path.resize(2);
+				path.Resize(2);
 				path[0] = start;
 				path[1] = end;
 			}
 			else {
-				path.resize(count);
+				path.Resize(count);
 				path[0] = start;
 				path[count - 1] = end;
 				count -= 2;
@@ -573,15 +575,15 @@ namespace pthfd {
 		}
 		__forceinline void Environs(CPathNode* mpather_node, CVector<NodeCost>* pNodeCost) {
 			if (mpather_node->numAdjacent == 0) {
-				pNodeCost->resize(0);
+				pNodeCost->Resize(0);
 			}
 			else if (mpather_node->cacheIndex < 0) {
-				statesCostVec_.resize(0);
+				statesCostVec_.Resize(0);
 				GetAdjacentCost(mpather_node->state, &statesCostVec_);
-				pNodeCost->resize(statesCostVec_.size());
-				mpather_node->numAdjacent = statesCostVec_.size();
+				pNodeCost->Resize(statesCostVec_.Size());
+				mpather_node->numAdjacent = statesCostVec_.Size();
 				if (mpather_node->numAdjacent > 0) {
-					const u_4b stateCostVecSize = statesCostVec_.size();
+					const u_4b stateCostVecSize = statesCostVec_.Size();
 					const StateCost* stateCostVecPtr = &statesCostVec_[0];
 					NodeCost* pNodeCostPtr = &(*pNodeCost)[0];
 					for (u_4b i = 0; i < stateCostVecSize; ++i) {
@@ -590,13 +592,13 @@ namespace pthfd {
 						pNodeCostPtr[i].node = pathNodePool_.GetCPathNode(finder_frame_, state, MAXIMAL, MAXIMAL, 0);
 					}
 					i_4b start = 0;
-					if (pNodeCost->size() > 0 && pathNodePool_.PushCache(pNodeCostPtr, pNodeCost->size(), &start)) {
+					if (pNodeCost->Size() > 0 && pathNodePool_.PushCache(pNodeCostPtr, pNodeCost->Size(), &start)) {
 						mpather_node->cacheIndex = start;
 					}
 				}
 			}
 			else {
-				pNodeCost->resize(mpather_node->numAdjacent);
+				pNodeCost->Resize(mpather_node->numAdjacent);
 				NodeCost* pNodeCostPtr = &(*pNodeCost)[0];
 				pathNodePool_.GetCache(mpather_node->cacheIndex, mpather_node->numAdjacent, pNodeCostPtr);
 				for (i_4b i = 0; i < mpather_node->numAdjacent; ++i) {
@@ -618,8 +620,8 @@ namespace pthfd {
 				GetEstimateCost(startNode, endNode), 0
 			);
 			open.Push(newCPathNode);
-			//statesCostVec_.resize(0);
-			//nodesCostVec_.resize(0);
+			statesCostVec_.Resize(0);
+			nodesCostVec_.Resize(0);
 			while (!open.Empty()) {
 				CPathNode* node = open.Pop();
 				if (node->state == endNode) {
@@ -679,7 +681,7 @@ namespace pthfd {
 			u_4b lastNode = static_cast<u_4b>(map_size_) * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
 			i_4b result = Search(frstNode, lastNode, &pathNodes, &totalCost);
 			if (result == IS_SOLVED) {
-				length = pathNodes.size();
+				length = pathNodes.Size();
 				path = new SPoint2u[length];
 				if (!path) { length = 0; return; }
 				for (u_4b i = 0; i < length; ++i) {

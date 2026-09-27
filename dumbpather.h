@@ -106,15 +106,9 @@ namespace pthfd {
 		template <std::integral IntType>
 		__forceinline SPoint2u& operator[](IntType i) const { return array_[i]; }
 		__forceinline u_4b Length() const { return length_; }
-		__forceinline void Clear() { 
-			if (length_) {
-				delete[] array_;
-				array_ = nullptr;
-				length_ = 0;
-			} 
-		}
 		__forceinline void Resize(u_4b array_length) {
 			if(length_) delete[] array_;
+			if (!array_length) return;
 			array_ = new SPoint2u[array_length];
 			length_ = array_length;
 		}
@@ -683,10 +677,10 @@ namespace pthfd {
 		~CDumbPather() {}
 		CDumbPather() : pathNodePool_(8), finder_frame_(0), map_cells_(nullptr), map_size_(0) {}
 		
-		__forceinline void FindPath(SPoint2u(&se)[2], CPathArray* path_class) {
-			SPoint2u& start = se[0];
-			SPoint2u& end = se[1];
-			path_class->Clear();
+		__forceinline void FindPath(SPoint2u(&path_points)[2], CPathArray* path_segments) {
+			SPoint2u& start = path_points[0];
+			SPoint2u& end = path_points[1];
+			path_segments->Resize(0);
 			{
 				Bool end_unvalid   = !(end.y   < map_size_ && end.x   < map_size_ ? map_cells_[ end.y ][ end.x ] != TerrainType::BLOKABLE : false);
 				Bool start_unvalid = !(start.y < map_size_ && start.x < map_size_ ? map_cells_[start.y][start.x] != TerrainType::BLOKABLE : false);
@@ -698,9 +692,9 @@ namespace pthfd {
 			u_4b lastNode = map_size_ * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
 			i_4b result = Search(frstNode, lastNode, &pathNodes, &totalCost);
 			if (result == IS_SOLVED) {
-				path_class->Resize(pathNodes.Size());
-				for (u_4b i = 0; i < path_class->Length(); ++i) {
-					(*path_class)[i] = SPoint2u{
+				path_segments->Resize(pathNodes.Size());
+				for (u_4b i = 0; i < path_segments->Length(); ++i) {
+					(*path_segments)[i] = SPoint2u{
 						static_cast<u_2b>(pathNodes[i] % map_size_), 
 						static_cast<u_2b>(pathNodes[i] / map_size_) 
 					};

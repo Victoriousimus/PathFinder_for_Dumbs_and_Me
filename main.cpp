@@ -47,34 +47,34 @@ void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&i
 	f_8b accum,find_time;
 	accum = 0.0f;
 	find_time = 0.0f;
-	SPoint2u se[2]{0};
-	se[0] = ise[0];
-	se[1] = ise[1];
+	SPoint2u path_points[2]{0};
+	path_points[0] = ise[0];
+	path_points[1] = ise[1];
 	for (i_4b i = 0; i < iter_count; ++i) {
 		f_8b find_time = win.time();
-		finder.Find(se, path);
+		finder.FindPath(path_points, path);
 		find_time = win.time() - find_time;
 		accum += find_time;
 	}
 	std::cout << "MOVE :: ( x"
-		<< se[0].x << "; y" << se[0].y << " ) to ( x" 
-		<< se[1].x << "; y" << se[1].y << " )  #" << iter_count << "  [ "
+		<< path_points[0].x << "; y" << path_points[0].y << " ) to ( x" 
+		<< path_points[1].x << "; y" << path_points[1].y << " )  #" << iter_count << "  [ "
 		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
 		<< std::endl;
 
 	accum = 0.0f;
 	find_time = 0.0f;
-	se[0] = ise[1];
-	se[1] = ise[0];
+	path_points[0] = ise[1];
+	path_points[1] = ise[0];
 	for (i_4b i = 0; i < iter_count; ++i) {
 		f_8b find_time = win.time();
-		finder.Find(se, path);
+		finder.FindPath(path_points, path);
 		find_time = win.time() - find_time;
 		accum += find_time;
 	}
 	std::cout << "MOVE :: ( x"
-		<< se[0].x << "; y" << se[0].y << " ) to ( x"
-		<< se[1].x << "; y" << se[1].y << " )  #" << iter_count << "  [ "
+		<< path_points[0].x << "; y" << path_points[0].y << " ) to ( x"
+		<< path_points[1].x << "; y" << path_points[1].y << " )  #" << iter_count << "  [ "
 		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
 		<< std::endl;
 }
@@ -121,7 +121,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 						static_cast<u_2b>(static_cast<f_4b>(GV.mause_Y) / SCALEF)
 					};
 					f_8b t_arr = Win.time();
-					Pth.Find(start_end_path, &path_arr);
+					Pth.FindPath(start_end_path, &path_arr);
 					if (path_arr.Length() > 0) {
 						t_arr = Win.time() - t_arr;
 						std::cout << "PathArray: s-e[" << start_end_path[0].x << ";" << start_end_path[0].y << " > " << start_end_path[1].x << ";" << start_end_path[1].y << "] path" <<

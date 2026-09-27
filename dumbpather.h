@@ -96,18 +96,16 @@ namespace pthfd {
 		SLOWABLE = 'Y'
 	};
 	//======================================================================
-	class CDumbPather;
 	class CPathArray final {
 	private:
 		SPoint2u* array_;
 		u_4b length_;
-		friend CDumbPather;
 	public:
 		CPathArray() : array_(nullptr), length_(0) {}
 		~CPathArray() { if (length_) delete[] array_; }
 		template <std::integral IntType>
-		__forceinline const SPoint2u& operator[](IntType i) const { return array_[i]; }
-		__forceinline const u_4b Length() const { return length_; }
+		__forceinline SPoint2u& operator[](IntType i) const { return array_[i]; }
+		__forceinline u_4b Length() const { return length_; }
 		__forceinline void Clear() { 
 			if (length_) {
 				delete[] array_;
@@ -115,6 +113,12 @@ namespace pthfd {
 				length_ = 0;
 			} 
 		}
+		__forceinline void Resize(u_4b array_length) {
+			if(length_) delete[] array_;
+			array_ = new SPoint2u[array_length];
+			length_ = array_length;
+		}
+
 	};
 	class CDumbPather final {
 	private:
@@ -212,10 +216,7 @@ namespace pthfd {
 				prev = addThis;
 			}
 			__forceinline void CalcTotalCost() {
-				if (costStart < MAXIMAL && estToGoal < MAXIMAL)
-					totalCost = costStart + estToGoal;
-				else
-					totalCost = MAXIMAL;
+				totalCost = (costStart < MAXIMAL && estToGoal < MAXIMAL) ? costStart + estToGoal : MAXIMAL;
 			}
 		};
 		class CPathPool final {
@@ -366,42 +367,56 @@ namespace pthfd {
 		class COpenQueue final {
 		private:
 			CVector<CPathNode*> heap_;
-			__forceinline void SiftUp(u_4b i) {
-				CPathNode* x = heap_[i];
-				while (i > 0) {
-					u_4b p = (i - 1) >> 2;
-					CPathNode* y = heap_[p];
+			__forceinline void SiftUp(u_4b put_indx) {
+				CPathNode* x = heap_[put_indx];
+				CPathNode* y;
+				u_4b p;
+				while (put_indx > 0) {
+					p = (put_indx - 1) >> 2;
+					y = heap_[p];
 					if (y->totalCost <= x->totalCost) break;
-					heap_[i] = y; y->heapIndex = i;
-					i = p;
+					heap_[put_indx] = y; y->heapIndex = put_indx;
+					put_indx = p;
 				}
-				heap_[i] = x; x->heapIndex = i;
+				heap_[put_indx] = x;
+				x->heapIndex = put_indx;
 			}
-			__forceinline void SiftDown(u_4b i) {
-				CPathNode* x = heap_[i];
+			__forceinline void SiftDown(u_4b put_indx) {
+				const CPathNode* selected_node = heap_[put_indx];
 				const u_4b n = heap_.Size();
-				u_4b tree_point{}, best{}, end{};
+				u_4b tree_point, new_best, best, end;
 				while (true) {
-					tree_point = (i << 2) + 1;
-					if (tree_point >= n) break;
+					tree_point = (put_indx << 2) + 1;
+					if (tree_point >= n) {
+						break;
+					}
 					best = tree_point;
 					end  = (tree_point + 4);
-					if( end >= n ) end = n;
-					for (u_4b k = tree_point + 1; k < end; ++k) {
-						if (heap_[k]->totalCost < heap_[best]->totalCost) 
-							best = k;
+					if (end > n) {
+						end = n;
 					}
-					if (heap_[best]->totalCost >= x->totalCost) 
+					for (new_best = tree_point + 1; new_best < end; ++new_best) {
+						if (heap_[new_best]->totalCost < heap_[best]->totalCost) {
+							best = new_best;
+						}
+					}
+					if (heap_[best]->totalCost >= selected_node->totalCost) {
 						break;
-					heap_[i] = heap_[best]; heap_[i]->heapIndex = i;
-					i = best;
+					}
+					heap_[put_indx] = heap_[best];
+					heap_[put_indx]->heapIndex = put_indx;
+					put_indx = best;
 				}
-				heap_[i] = x; x->heapIndex = i;
+				heap_[put_indx] = const_cast<CPathNode*>(selected_node);
+				const_cast<CPathNode*>(selected_node)->heapIndex = put_indx;
 			}
 		public:
-			__forceinline void Update(CPathNode* n) {
-				SiftUp(n->heapIndex);
-				SiftDown(n->heapIndex);
+			//__forceinline void Update(CPathNode* n) {
+			//	SiftUp(n->heapIndex);
+			//	SiftDown(n->heapIndex);
+			__forceinline void Update(CPathNode * n, u_4b oldCost) {
+					if (n->totalCost < oldCost) SiftUp(n->heapIndex);
+					else SiftDown(n->heapIndex);
 			}
 			__forceinline void Clear() { heap_.Clear(); }
 			__forceinline void Push(CPathNode* n) {
@@ -432,55 +447,55 @@ namespace pthfd {
 		};
 		//======================================================================
 
-		//friend class CPathNode;
 		CPathPool	pathNodePool_;
 		CVector< StateCost >	statesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< NodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< u_4b >			costsVec_;
-		u_4b finder_frame_;						// incremented with every solve, used to determine if cached data needs to be refreshed
+		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		//======================================================================
+		u_4b map_size_;		
 		i_1b** map_cells_;
-		u_2b map_size_;
 		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
-			SPoint2u
-				s = SPoint2u{ static_cast<u_2b>(stateStart % map_size_), static_cast<u_2b>(stateStart / map_size_) },
-				e = SPoint2u{ static_cast<u_2b>(stateEnd % map_size_),   static_cast<u_2b>(stateEnd / map_size_) };
-			return (
-				(s.x > e.x ? static_cast<u_4b>(s.x - e.x) : static_cast<u_4b>(e.x - s.x)) +
-				(s.y > e.y ? static_cast<u_4b>(s.y - e.y) : static_cast<u_4b>(e.y - s.y)) ) << 7;
+			u_4b sX = stateStart % map_size_;
+			stateStart = stateStart / map_size_;
+			u_4b eX = stateEnd % map_size_;
+			stateEnd = stateEnd / map_size_;
+			return ( (stateStart > stateEnd ? stateStart - stateEnd : stateEnd - stateStart) +
+				(sX > eX ? sX - eX : eX - sX)) << 7;
 		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<StateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
-			SPoint2u e, s = SPoint2u{ static_cast<u_2b>(state % map_size_), static_cast<u_2b>(state / map_size_) };
+			//u_4b X = state % map_size_;
+			u_4b stepX, stepY, X = state % map_size_;
 			//----------------------------------------------------------------------
-			e.y = --s.y;
-			if (e.y < map_size_) {
-				e.x = --s.x;
-				i_1b*& line = map_cells_[e.y];
-				u_4b indx = static_cast<u_4b>(map_size_) * static_cast<u_4b>(e.y) + static_cast<u_4b>(e.x);
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+			stepY = (state / map_size_) - 1;
+			if (stepY < map_size_) {
+				stepX = --X;
+				i_1b*& line = map_cells_[stepY];
+				u_4b indx = (map_size_ * stepY) + stepX;
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
 							neighbors->PushBack({ FAST_DIAG, indx });
 					}
 				}
-				++e.x;
+				++stepX;
 				++indx;
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_LINE, indx });
 						else
 							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
-				++e.x;
+				++stepX;
 				++indx;
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
 							neighbors->PushBack({ FAST_DIAG, indx });
@@ -488,24 +503,24 @@ namespace pthfd {
 				}
 			}
 			//----------------------------------------------------------------------
-			++e.y;
-			if (e.y < map_size_) {
-				e.x = s.x;
-				i_1b*& line = map_cells_[e.y];
-				u_4b indx = static_cast<u_4b>(map_size_) * static_cast<u_4b>(e.y) + static_cast<u_4b>(e.x);
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+			++stepY;
+			if (stepY < map_size_) {
+				stepX = X;
+				i_1b*& line = map_cells_[stepY];
+				u_4b indx = (map_size_ * stepY) + stepX;
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_LINE, indx });
 						else
 							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
-				e.x += 2;
+				stepX += 2;
 				indx += 2;
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_LINE, indx });
 						else
 							neighbors->PushBack({ FAST_LINE, indx });
@@ -513,34 +528,34 @@ namespace pthfd {
 				}
 			}
 			//----------------------------------------------------------------------
-			++e.y;
-			if (e.y < map_size_) {
-				e.x = s.x;
-				i_1b*& line = map_cells_[e.y];
-				u_4b indx = static_cast<u_4b>(map_size_) * static_cast<u_4b>(e.y) + static_cast<u_4b>(e.x);
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+			++stepY;
+			if (stepY < map_size_) {
+				stepX = X;
+				i_1b*& line = map_cells_[stepY];
+				u_4b indx = (map_size_ * stepY) + stepX;
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
 							neighbors->PushBack({ FAST_DIAG, indx });
 					}
 				}
-				++e.x;
+				++stepX;
 				++indx;
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_LINE, indx });
 						else
 							neighbors->PushBack({ FAST_LINE, indx });
 					}
 				}
-				++e.x;
+				++stepX;
 				++indx;
-				if (e.x < map_size_) {
-					if (line[e.x] != TerrainType::BLOKABLE) {
-						if (line[e.x] == TerrainType::SLOWABLE)
+				if (stepX < map_size_) {
+					if (line[stepX] != TerrainType::BLOKABLE) {
+						if (line[stepX] == TerrainType::SLOWABLE)
 							neighbors->PushBack({ SLOW_DIAG, indx });
 						else
 							neighbors->PushBack({ FAST_DIAG, indx });
@@ -618,6 +633,12 @@ namespace pthfd {
 			if (startNode == endNode) return AT_THE_END;
 			++finder_frame_;
 			COpenQueue open;
+			CPathNode* child;
+			CPathNode* inOpen;
+			CPathNode* inClosed;
+			CPathNode* inEither;
+			u_4b oldCost;
+			u_4b newCost;
 			CPathNode* newCPathNode = pathNodePool_.GetCPathNode(
 				finder_frame_, startNode, 0,
 				GetEstimateCost(startNode, endNode), 0
@@ -637,18 +658,19 @@ namespace pthfd {
 					Environs(node, &nodesCostVec_);
 					for (i_4b i = 0; i < node->numAdjacent; ++i) {
 						if (nodesCostVec_[i].cost == MAXIMAL) continue;
-						CPathNode* child = nodesCostVec_[i].node;
-						CPathNode* inOpen = child->inOpen ? child : 0;
-						CPathNode* inClosed = child->inClosed ? child : 0;
-						CPathNode* inEither = (CPathNode*)(((u_8b)inOpen) | ((u_8b)inClosed));
-						u_4b newCost = node->costStart + nodesCostVec_[i].cost;
+						child = nodesCostVec_[i].node;
+						inOpen = child->inOpen ? child : 0;
+						inClosed = child->inClosed ? child : 0;
+						inEither = reinterpret_cast<CPathNode*>( reinterpret_cast<u_8b>(inOpen) | reinterpret_cast<u_8b>(inClosed) );
+						newCost = node->costStart + nodesCostVec_[i].cost;
 						if (inEither) {
 							if (newCost < child->costStart) {
+								oldCost = node->totalCost;
 								child->parent = node;
 								child->costStart = newCost;
 								child->estToGoal = GetEstimateCost(child->state, endNode);
 								child->CalcTotalCost();
-								if (inOpen) open.Update(child);
+								if (inOpen) open.Update(child, oldCost);
 							}
 						}
 						else {
@@ -669,35 +691,30 @@ namespace pthfd {
 		__forceinline void Find(SPoint2u(&se)[2], CPathArray* path_class) {//i_4b* path_length, SPoint2u** outPath) {
 			SPoint2u& start = se[0];
 			SPoint2u& end = se[1];
-			SPoint2u*& path = path_class->array_;
-			u_4b& length = path_class->length_;
 			path_class->Clear();
 			{
 				Bool end_unvalid   = !(end.y   < map_size_ && end.x   < map_size_ ? map_cells_[ end.y ][ end.x ] != TerrainType::BLOKABLE : false);
 				Bool start_unvalid = !(start.y < map_size_ && start.x < map_size_ ? map_cells_[start.y][start.x] != TerrainType::BLOKABLE : false);
 				if (start_unvalid || end_unvalid) return;
 			}
-
 			CVector<u_4b> pathNodes;
 			u_4b totalCost;
-			u_4b frstNode = static_cast<u_4b>(map_size_) * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x);
-			u_4b lastNode = static_cast<u_4b>(map_size_) * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
+			u_4b frstNode = map_size_ * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x);
+			u_4b lastNode = map_size_ * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
 			i_4b result = Search(frstNode, lastNode, &pathNodes, &totalCost);
 			if (result == IS_SOLVED) {
-				length = pathNodes.Size();
-				path = new SPoint2u[length];
-				if (!path) { length = 0; return; }
-				for (u_4b i = 0; i < length; ++i) {
-					path[i] = SPoint2u{
+				path_class->Resize(pathNodes.Size());
+				for (u_4b i = 0; i < path_class->Length(); ++i) {
+					(*path_class)[i] = SPoint2u{
 						static_cast<u_2b>(pathNodes[i] % map_size_), 
 						static_cast<u_2b>(pathNodes[i] / map_size_) 
 					};
 				}
 			}
 		}
-		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) { 
+		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) {
+			map_size_ = static_cast<u_4b>(map_size);
 			map_cells_ = map_data;
-			map_size_ = map_size;
 			pathNodePool_.Clear();
 			finder_frame_ = 0;
 		}

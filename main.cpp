@@ -42,6 +42,26 @@ static void DrawPath(pthfd::CPathArray* path_ptr, i_4b size) {
 	}
 	glEnd();
 }
+static void DrawQuad(SPoint2u& pos, f_4b(&quad)[3], f_4b(&line)[3], i_4b size) {
+	f_4b X, Y, q;
+	X = (static_cast<f_4b>(pos.x << 1) / static_cast<f_4b>(size)) - 1.0f;
+	Y = (static_cast<f_4b>(pos.y << 1) / static_cast<f_4b>(size)) - 1.0f;
+	glLineWidth(1.0f);
+	glBegin(GL_QUADS);
+		q = 0.016;
+		glColor3f(quad[0], quad[1], quad[2]);
+		glVertex2f(X-q, Y-q);
+		glVertex2f(X+q, Y-q);
+		glVertex2f(X+q, Y+q);
+		glVertex2f(X-q, Y+q);
+		q = 0.01;
+		glColor3f(line[0], line[1], line[2]);
+		glVertex2f(X - q, Y - q);
+		glVertex2f(X + q, Y - q);
+		glVertex2f(X + q, Y + q);
+		glVertex2f(X - q, Y + q);
+	glEnd();
+}
 
 static void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, i_4b iter_count) {
 	f_8b accum,find_time;
@@ -147,7 +167,18 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 			}
 			glPushMatrix();
 			Img.draw(-1.0f, -1.0f);
-			if(path_arr.Length()>0) DrawPath( &path_arr, size);
+			if (path_arr.Length() > 0) {
+				DrawPath(&path_arr, size);
+				f_4b lineColor[3] = { 0.3f, 1.0f, 0.4f };
+				{
+					f_4b quadColor[3] = { 0.0f, 0.0f, 0.9f };
+					DrawQuad(start_end_path[0], quadColor, lineColor, size);
+				}
+				{
+					f_4b quadColor[3] = { 0.0f, 0.9f, 0.0f };
+					DrawQuad(start_end_path[1], quadColor, lineColor, size);
+				}
+			}
 			glPopMatrix();
 			Win.swap();
 		}

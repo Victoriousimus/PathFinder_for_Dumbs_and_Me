@@ -170,14 +170,14 @@ namespace pthfd {
 		public:
 			CPathNode* child[2];		// Binary search in the hash table. [left, right]
 			CPathNode* next, * prev;	// used by open queue
-			CPathNode* parent;		// the parent is used to reconstruct the path
-			u_4b heapIndex;			// unique id for this path, so the solver can distinguish
-			u_4b frame_;			// unique id for this path, so the solver can distinguish
-			u_4b state;			// the client state
-			u_4b costStart;	// exact
-			u_4b estToGoal;		// estimated
-			u_4b totalCost;		// could be a function, but save some math.
-			i_4b numAdjacent;		// -1  is unknown & needs to be queried
+			CPathNode* parent;			// the parent is used to reconstruct the path
+			u_4b heapIndex;				// unique id for this path, so the solver can distinguish
+			u_4b frame_;				// unique id for this path, so the solver can distinguish
+			u_4b state;					// the client state
+			u_4b costStart;				// exact
+			u_4b estToGoal;				// estimated
+			u_4b totalCost;				// could be a function, but save some math.
+			i_4b numAdjacent;			// -1  is unknown & needs to be queried
 			i_4b cacheIndex;			// position in cache
 			Bool inClosed;
 			Bool inOpen;
@@ -411,9 +411,6 @@ namespace pthfd {
 				const_cast<CPathNode*>(selected_node)->heapIndex = put_indx;
 			}
 		public:
-			//__forceinline void Update(CPathNode* n) {
-			//	SiftUp(n->heapIndex);
-			//	SiftDown(n->heapIndex);
 			__forceinline void Update(CPathNode * n, u_4b oldCost) {
 					if (n->totalCost < oldCost) SiftUp(n->heapIndex);
 					else SiftDown(n->heapIndex);
@@ -465,7 +462,6 @@ namespace pthfd {
 		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<StateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
-			//u_4b X = state % map_size_;
 			u_4b stepX, stepY, X = state % map_size_;
 			//----------------------------------------------------------------------
 			stepY = (state / map_size_) - 1;
@@ -687,7 +683,7 @@ namespace pthfd {
 		~CDumbPather() {}
 		CDumbPather() : pathNodePool_(8), finder_frame_(0), map_cells_(nullptr), map_size_(0) {}
 		
-		__forceinline void Find(SPoint2u(&se)[2], CPathArray* path_class) {//i_4b* path_length, SPoint2u** outPath) {
+		__forceinline void Find(SPoint2u(&se)[2], CPathArray* path_class) {
 			SPoint2u& start = se[0];
 			SPoint2u& end = se[1];
 			path_class->Clear();

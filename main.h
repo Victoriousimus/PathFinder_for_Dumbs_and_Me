@@ -18,6 +18,7 @@
 #include <STB/stb_image.h>
 #include <GLFW/glfw3.h>
 #include "dumbpather.h"
+#include "dumbunites.h"
 
 class CStbImg {
 private:

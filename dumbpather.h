@@ -37,7 +37,7 @@ Use:
 #endif // !_DEBUG
 #endif
 
-#define MAXIMAL 0xFFFFFFFFu
+#define MAXIMAL 0x7FFFFFFFu
 #define CACHBLOCK 128
 
 #ifdef DUMBPATHER_TYPES
@@ -107,19 +107,15 @@ namespace pthfd {
 		__forceinline SPoint2u& operator[](IntType i) const { return array_[i]; }
 		__forceinline u_4b Length() const { return length_; }
 		__forceinline void Resize(u_4b array_length) {
+			if (array_length == length_) return;
+			if (array_) delete[] array_;
 			if (!array_length) {
-				if (array_) {
-					delete[] array_;
-					array_ = nullptr;
-					length_ = 0;
-				}
+				array_ = nullptr;
+				length_ = 0;
 				return;
 			}
-			if (array_length != length_) {
-				if (array_) delete[] array_;
-				array_ = new SPoint2u[array_length];
-				length_ = array_length;
-			}
+			array_ = new SPoint2u[array_length];
+			length_ = array_length;
 		}
 
 	};
@@ -229,7 +225,6 @@ namespace pthfd {
 				CPathNode pathNode[1];
 			};
 			CPathNode	freeMemSentinel;
-			u_4b		totalCollide;
 			u_4b		nAllocated;				// number of pathnodes allocated (from Alloc())
 			u_4b		nAvailable;				// number available for allocation
 			u_4b		hashShift;
@@ -256,7 +251,7 @@ namespace pthfd {
 				else { hashTable[key] = root; }
 			}
 			__forceinline Block* NewBlock() {
-				Block* block = reinterpret_cast<Block*>(calloc(1, sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1)));
+				Block* block = reinterpret_cast<Block*>(malloc(sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1)));
 				block->nextBlock = 0;
 				nAvailable += CACHBLOCK;
 				for (u_4b i = 0; i < CACHBLOCK; ++i)
@@ -286,8 +281,6 @@ namespace pthfd {
 				while (HashSize() < CACHBLOCK) ++hashShift;
 				hashTable = reinterpret_cast<CPathNode**>(calloc(HashSize(), sizeof(CPathNode*)));
 				blocks = firstBlock = NewBlock();
-				//	printf( "HashSize=%d CACHBLOCK=%d\n", HashSize(), CACHBLOCK );
-				totalCollide = 0;
 			}
 			~CPathPool() {
 				Clear();
@@ -355,16 +348,19 @@ namespace pthfd {
 			__forceinline void GetCache(i_4b start, i_4b nNodes, NodeCost* nodes) const {
 				memcpy(nodes, &cache[start], sizeof(NodeCost) * nNodes);
 			}
-			__forceinline void AllStates(u_4b frame_, CVector< u_4b >* stateVec)
-			{
-				for (Block* b = blocks; b; b = b->nextBlock)
-				{
-					for (u_4b i = 0; i < CACHBLOCK; ++i)
-					{
+			__forceinline void AllStates(u_4b frame_, CVector< u_4b >* stateVec) {
+				for (Block* b = blocks; b; b = b->nextBlock) {
+					for (u_4b i = 0; i < CACHBLOCK; ++i) {
 						if (b->pathNode[i].frame_ == frame_)
 							stateVec->PushBack(b->pathNode[i].state);
 					}
 				}
+			}
+			__forceinline u_4b GetCacheSize() {
+				return (
+					(sizeof(NodeCost) * cacheCap) +
+					(sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1))
+				);
 			}
 		};
 		class COpenQueue final {
@@ -452,6 +448,7 @@ namespace pthfd {
 		CVector< NodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< u_4b >			costsVec_;
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
+		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		//======================================================================
 		u_4b map_size_;		
 		i_1b** map_cells_;
@@ -626,24 +623,26 @@ namespace pthfd {
 				}
 			}
 		}
-		__forceinline i_4b Search(u_4b startNode, u_4b endNode, CVector< u_4b >* path, u_4b* cost) {
+		__forceinline i_4b Search(u_4b startNode, u_4b endNode, CVector< u_4b >* path) {
 			path->Clear();
-			*cost = 0;
+			total_cost_ = 0;
 			if (startNode == endNode) return AT_THE_END;
 			++finder_frame_;
 			COpenQueue open;
-			CPathNode *node, *inEither, *newCPathNode = pathNodePool_.GetCPathNode(
-				finder_frame_, startNode, 0,
-				GetEstimateCost(startNode, endNode), 0
-			);
+			CPathNode *node, *child;
 			u_4b oldCost, newCost;
-			open.Push(newCPathNode);
+			open.Push(
+					pathNodePool_.GetCPathNode(
+							finder_frame_, startNode, 0,
+							GetEstimateCost(startNode, endNode), 0
+						)
+				);
 			statesCostVec_.Resize(0);
 			nodesCostVec_.Resize(0);
 			while (!open.Empty()) {
 				node = open.Pop();
 				if (node->state == endNode) {
-					*cost = node->costStart;
+					total_cost_ = node->costStart;
 					Achieved(node, startNode, endNode, path);
 					return IS_SOLVED;
 				}
@@ -652,26 +651,21 @@ namespace pthfd {
 					Environs(node, &nodesCostVec_);
 					for (i_4b i = 0; i < node->numAdjacent; ++i) {
 						if (nodesCostVec_[i].cost == MAXIMAL) continue;
-						CPathNode*& child = nodesCostVec_[i].node;
-						Bool& OpenFlag  = child->OpenFlag;
-						Bool& CloseFlag = child->CloseFlag;
-						inEither = reinterpret_cast<CPathNode*>( 
-							reinterpret_cast<u_8b>(OpenFlag  ? child : 0) |
-							reinterpret_cast<u_8b>(CloseFlag ? child : 0) );
-						newCost = node->costStart + nodesCostVec_[i].cost;
-						if (inEither) {
+						child = nodesCostVec_[i].node;
+						if (child->OpenFlag || child->CloseFlag) {
+							newCost = node->costStart + nodesCostVec_[i].cost;
 							if (newCost < child->costStart) {
 								oldCost = node->totalCost;
 								child->parent = node;
 								child->costStart = newCost;
 								child->estToGoal = GetEstimateCost(child->state, endNode);
 								child->CalcTotalCost();
-								if (OpenFlag) open.Update(child, oldCost);
+								if (child->OpenFlag) open.Update(child, oldCost);
 							}
 						}
 						else {
 							child->parent = node;
-							child->costStart = newCost;
+							child->costStart = node->costStart + nodesCostVec_[i].cost;
 							child->estToGoal = GetEstimateCost(child->state, endNode), child->CalcTotalCost();
 							open.Push(child);
 						}
@@ -694,10 +688,9 @@ namespace pthfd {
 				if (start_unvalid || end_unvalid) return;
 			}
 			CVector<u_4b> pathNodes;
-			u_4b totalCost;
-			u_4b frstNode = map_size_ * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x);
-			u_4b lastNode = map_size_ * static_cast<u_4b>( end.y ) + static_cast<u_4b>( end.x );
-			i_4b result = Search(frstNode, lastNode, &pathNodes, &totalCost);
+			u_4b frstNode = map_size_ * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x),
+				lastNode = map_size_ * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
+			i_4b result = Search(frstNode, lastNode, &pathNodes);
 			if (result == IS_SOLVED) {
 				path_segments->Resize(pathNodes.Size());
 				for (u_4b i = 0; i < path_segments->Length(); ++i) {
@@ -715,12 +708,14 @@ namespace pthfd {
 			finder_frame_ = 0;
 		}
 #ifdef _IOSTREAM_
-		__forceinline void PrintStateInfo(u_4b state) {
-			SPoint2u p = SPoint2u{ static_cast<u_2b>(state % map_size_), static_cast<u_2b>(state / map_size_) };
-			printf("(%d, %d)", p.x, p.y);
-		}
 		__forceinline void PrintCacheState() {
-			std::cout << "PathFinder Cache :\n\tHead: " << sizeof(*this) << std::endl;
+			std::cout << "PathFinder Cache :"
+				<< "\n\t Head: " << sizeof(*this)
+				<< "\n\t costsVec_:      " << sizeof(u_4b) * costsVec_.Size()
+				<< "\n\t pathNodePool_:  " << pathNodePool_.GetCacheSize()
+				<< "\n\t nodesCostVec_:  " << sizeof(NodeCost) * nodesCostVec_.Size()
+				<< "\n\t stateCostVec_: " << sizeof(StateCost) * statesCostVec_.Size()
+				<< std::endl;
 		}
 #endif
 	};

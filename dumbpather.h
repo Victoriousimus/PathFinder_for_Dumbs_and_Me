@@ -107,10 +107,19 @@ namespace pthfd {
 		__forceinline SPoint2u& operator[](IntType i) const { return array_[i]; }
 		__forceinline u_4b Length() const { return length_; }
 		__forceinline void Resize(u_4b array_length) {
-			if(length_) delete[] array_;
-			if (!array_length) return;
-			array_ = new SPoint2u[array_length];
-			length_ = array_length;
+			if (!array_length) {
+				if (array_) {
+					delete[] array_;
+					array_ = nullptr;
+					length_ = 0;
+				}
+				return;
+			}
+			if (array_length != length_) {
+				if (array_) delete[] array_;
+				array_ = new SPoint2u[array_length];
+				length_ = array_length;
+			}
 		}
 
 	};
@@ -173,8 +182,8 @@ namespace pthfd {
 			u_4b totalCost;				// could be a function, but save some math.
 			i_4b numAdjacent;			// -1  is unknown & needs to be queried
 			i_4b cacheIndex;			// position in cache
-			Bool inClosed;
-			Bool inOpen;
+			Bool CloseFlag;
+			Bool OpenFlag;
 
 			__forceinline void Init(u_4b _frame, u_4b _state, u_4b _costFromStart, u_4b _estToGoal, CPathNode* _parent) {
 				state = _state;
@@ -183,8 +192,8 @@ namespace pthfd {
 				CalcTotalCost();
 				parent = _parent;
 				frame_ = _frame;
-				inOpen = 0;
-				inClosed = 0;
+				OpenFlag = 0;
+				CloseFlag = 0;
 			}
 			__forceinline void Clear() {
 				memset(this, 0, sizeof(CPathNode));
@@ -414,7 +423,7 @@ namespace pthfd {
 				n->heapIndex = heap_.Size();
 				heap_.PushBack(n);
 				SiftUp(n->heapIndex);
-				n->inOpen = 1;
+				n->OpenFlag = 1;
 			}
 			__forceinline Bool Empty() const { return heap_.Size() == 0; }
 			__forceinline CPathNode* Pop() {
@@ -430,7 +439,7 @@ namespace pthfd {
 				else {
 					heap_.Resize(0);
 				}
-				top->inOpen = 0;
+				top->OpenFlag = 0;
 				top->heapIndex = MAXIMAL;
 				return top;
 			}
@@ -623,34 +632,32 @@ namespace pthfd {
 			if (startNode == endNode) return AT_THE_END;
 			++finder_frame_;
 			COpenQueue open;
-			CPathNode* inOpen;
-			CPathNode* inClosed;
-			CPathNode* inEither;
-			u_4b oldCost;
-			u_4b newCost;
-			CPathNode* newCPathNode = pathNodePool_.GetCPathNode(
+			CPathNode *node, *inEither, *newCPathNode = pathNodePool_.GetCPathNode(
 				finder_frame_, startNode, 0,
 				GetEstimateCost(startNode, endNode), 0
 			);
+			u_4b oldCost, newCost;
 			open.Push(newCPathNode);
 			statesCostVec_.Resize(0);
 			nodesCostVec_.Resize(0);
 			while (!open.Empty()) {
-				CPathNode* node = open.Pop();
+				node = open.Pop();
 				if (node->state == endNode) {
 					*cost = node->costStart;
 					Achieved(node, startNode, endNode, path);
 					return IS_SOLVED;
 				}
 				else {
-					node->inClosed = 1;
+					node->CloseFlag = 1;
 					Environs(node, &nodesCostVec_);
 					for (i_4b i = 0; i < node->numAdjacent; ++i) {
 						if (nodesCostVec_[i].cost == MAXIMAL) continue;
 						CPathNode*& child = nodesCostVec_[i].node;
-						inOpen = child->inOpen ? child : 0;
-						inClosed = child->inClosed ? child : 0;
-						inEither = reinterpret_cast<CPathNode*>( reinterpret_cast<u_8b>(inOpen) | reinterpret_cast<u_8b>(inClosed) );
+						Bool& OpenFlag  = child->OpenFlag;
+						Bool& CloseFlag = child->CloseFlag;
+						inEither = reinterpret_cast<CPathNode*>( 
+							reinterpret_cast<u_8b>(OpenFlag  ? child : 0) |
+							reinterpret_cast<u_8b>(CloseFlag ? child : 0) );
 						newCost = node->costStart + nodesCostVec_[i].cost;
 						if (inEither) {
 							if (newCost < child->costStart) {
@@ -659,7 +666,7 @@ namespace pthfd {
 								child->costStart = newCost;
 								child->estToGoal = GetEstimateCost(child->state, endNode);
 								child->CalcTotalCost();
-								if (inOpen) open.Update(child, oldCost);
+								if (OpenFlag) open.Update(child, oldCost);
 							}
 						}
 						else {
@@ -679,7 +686,7 @@ namespace pthfd {
 		
 		__forceinline void FindPath(SPoint2u(&path_points)[2], CPathArray* path_segments) {
 			SPoint2u& start = path_points[0];
-			SPoint2u& end = path_points[1];
+			SPoint2u& end   = path_points[1];
 			path_segments->Resize(0);
 			{
 				Bool end_unvalid   = !(end.y   < map_size_ && end.x   < map_size_ ? map_cells_[ end.y ][ end.x ] != TerrainType::BLOKABLE : false);
@@ -689,7 +696,7 @@ namespace pthfd {
 			CVector<u_4b> pathNodes;
 			u_4b totalCost;
 			u_4b frstNode = map_size_ * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x);
-			u_4b lastNode = map_size_ * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
+			u_4b lastNode = map_size_ * static_cast<u_4b>( end.y ) + static_cast<u_4b>( end.x );
 			i_4b result = Search(frstNode, lastNode, &pathNodes, &totalCost);
 			if (result == IS_SOLVED) {
 				path_segments->Resize(pathNodes.Size());

@@ -1,14 +1,14 @@
 ﻿#pragma once
-#ifndef PATHFINDER_FOR_DUMBS_INCLUDE
-#define PATHFINDER_FOR_DUMBS_INCLUDE
-#ifdef _CSTDLIB_
-
 /**********************************************************************
 SPoint2u = uint16_t x,y
 CPathArray = Array class for finded path
 CDumbPather = understend)
 
-Use: 
+Use:
+	#include DUMBPATHER_TYPES
+	#include <cstdlib>
+	#include " [include_lib_directory] /dumbpather.h"
+
 		SomeMapClass Map;
 		SPoint2u points[2] = {
 			{ unit_start_XY_position },
@@ -23,9 +23,12 @@ Use:
 		PathManager.SetByteMap( MapCellsMatrix, MapSize );
 		PathManager.Find(points, &UnitFindedPath);
 
-		for(int i=0; i<UnitFindedPath.Length()) 
+		for(int i=0; i<UnitFindedPath.Length())
 			SomeStepProcedure(UnitFindedPath[i]);
 **********************************************************************/
+#ifndef PATHFINDER_FOR_DUMBS_INCLUDE
+#define PATHFINDER_FOR_DUMBS_INCLUDE
+#ifdef _CSTDLIB_
 
 #ifdef _MSC_VER
 #ifndef _DEBUG
@@ -77,13 +80,10 @@ Use:
 	typedef bool Bool;
 	typedef float f_4b;
 	typedef double f_8b;
-
-
 	struct SU2b_xy {
 		u_2b x;
 		u_2b y;
 	};
-
 #endif
 
 #define SPoint2u SU2b_xy
@@ -633,7 +633,6 @@ namespace pthfd {
 			if (startNode == endNode) return AT_THE_END;
 			++finder_frame_;
 			COpenQueue open;
-			CPathNode* child;
 			CPathNode* inOpen;
 			CPathNode* inClosed;
 			CPathNode* inEither;
@@ -658,7 +657,7 @@ namespace pthfd {
 					Environs(node, &nodesCostVec_);
 					for (i_4b i = 0; i < node->numAdjacent; ++i) {
 						if (nodesCostVec_[i].cost == MAXIMAL) continue;
-						child = nodesCostVec_[i].node;
+						CPathNode*& child = nodesCostVec_[i].node;
 						inOpen = child->inOpen ? child : 0;
 						inClosed = child->inClosed ? child : 0;
 						inEither = reinterpret_cast<CPathNode*>( reinterpret_cast<u_8b>(inOpen) | reinterpret_cast<u_8b>(inClosed) );

@@ -9,8 +9,8 @@ pthfd::TerrainType
     SLOWABLE - int8_t num for map data matrix
 ________________________________________________________________________________________________________________________________
 pthfd::CDumbPather interface
-    FindPath(SPoint2u(&se)[2], CPathArray* path_class)
-    SetByteMap(i_1b** map_data, u_2b map_size)
+    FindPath(SPoint2u(&path_points)[2], CPathArray* path_segments) - Bild path on path_segments
+    SetByteMap(i_1b** map_data, u_2b map_size)                     - Set world map
 ________________________________________________________________________________________________________________________________
 pthfd::CPathArray interface
     SPoint2u& operator[](IntType i)  - !!! UNSAFE !!! get array element

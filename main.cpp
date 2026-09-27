@@ -43,36 +43,38 @@ static void DrawPath(pthfd::CPathArray* path_ptr, i_4b size) {
 	glEnd();
 }
 
-void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, u_4b iter_count) {
+void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, i_4b iter_count) {
 	f_8b accum,find_time;
 	accum = 0.0f;
 	find_time = 0.0f;
-	SPoint2u se[2] = {0};
-	se[0] = ise[0]; se[1] = ise[1];
+	SPoint2u se[2]{0};
+	se[0] = ise[0];
+	se[1] = ise[1];
 	for (i_4b i = 0; i < iter_count; ++i) {
 		f_8b find_time = win.time();
 		finder.Find(se, path);
 		find_time = win.time() - find_time;
 		accum += find_time;
 	}
-	std::cout << "MOVE ( x" 
+	std::cout << "MOVE :: ( x"
 		<< se[0].x << "; y" << se[0].y << " ) to ( x" 
-		<< se[1].x << "; y" << se[1].y << " )  -  [ "
+		<< se[1].x << "; y" << se[1].y << " )  #" << iter_count << "  [ "
 		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
 		<< std::endl;
 
 	accum = 0.0f;
 	find_time = 0.0f;
-	se[0] = ise[1]; se[1] = ise[0];
+	se[0] = ise[1];
+	se[1] = ise[0];
 	for (i_4b i = 0; i < iter_count; ++i) {
 		f_8b find_time = win.time();
 		finder.Find(se, path);
 		find_time = win.time() - find_time;
 		accum += find_time;
 	}
-	std::cout << "MOVE ( x" 
+	std::cout << "MOVE :: ( x"
 		<< se[0].x << "; y" << se[0].y << " ) to ( x"
-		<< se[1].x << "; y" << se[1].y << " )  -  [ "
+		<< se[1].x << "; y" << se[1].y << " )  #" << iter_count << "  [ "
 		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
 		<< std::endl;
 }
@@ -103,7 +105,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 		start_end_path[0] = { 52, 119 };
 		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 256);
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 32);
 
 		while (!Win.window_close()) {
 			if (GV.update) {

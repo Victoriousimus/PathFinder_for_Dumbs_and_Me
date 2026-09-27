@@ -1,7 +1,7 @@
 # PathFinder_for_Dumbs_and_Me
 
 This header-only library was created as a more basic implementation of MicroPather (https://github.com/leethomason/MicroPather).
-The entire working interface is accessible via the "pthfd" namespace.
+The entire interface of the "dumbpather.h" file is available via the "pthfd" namespace.
 ________________________________________________________________________________________________________________________________
 pthfd::TerrainType
     WALKABLE - int8_t num for map data matrix

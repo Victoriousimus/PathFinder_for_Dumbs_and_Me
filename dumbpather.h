@@ -683,7 +683,7 @@ namespace pthfd {
 		~CDumbPather() {}
 		CDumbPather() : pathNodePool_(8), finder_frame_(0), map_cells_(nullptr), map_size_(0) {}
 		
-		__forceinline void Find(SPoint2u(&se)[2], CPathArray* path_class) {
+		__forceinline void FindPath(SPoint2u(&se)[2], CPathArray* path_class) {
 			SPoint2u& start = se[0];
 			SPoint2u& end = se[1];
 			path_class->Clear();

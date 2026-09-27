@@ -43,7 +43,7 @@ static void DrawPath(pthfd::CPathArray* path_ptr, i_4b size) {
 	glEnd();
 }
 
-void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, i_4b iter_count) {
+static void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, i_4b iter_count) {
 	f_8b accum,find_time;
 	accum = 0.0f;
 	find_time = 0.0f;
@@ -85,7 +85,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 	SMap_8b Map;
 	i_2b window_size;
 	i_2b size;
-	SPoint2u start_end_path[2];
+	SPoint2u start_end_path[2]{};
 
 	size = Img.load("map_smpl_0.png", SCALEF);
 	if (size < 1) std::cout << "ERROR_LOAD_IMG";

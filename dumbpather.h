@@ -21,7 +21,7 @@ Use:
 		pthfd::CPathArray UnitFindedPath;
 
 		PathManager.SetByteMap( MapCellsMatrix, MapSize );
-		PathManager.Find(points, &UnitFindedPath);
+		PathManager.FindPath(points, &UnitFindedPath);
 
 		for(int i=0; i<UnitFindedPath.Length())
 			SomeStepProcedure(UnitFindedPath[i]);

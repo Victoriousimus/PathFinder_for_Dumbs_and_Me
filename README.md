@@ -1,5 +1,7 @@
 # PathFinder_for_Dumbs_and_Me
 
+WARNING: Not the final implementation! Designed for use with small maps. Use in a single thread. I work on the project from 8:00 PM to 10:00 PM (GMT+9).
+
 This header-only library was created as a more basic implementation of MicroPather (https://github.com/leethomason/MicroPather).
 The entire interface of the "dumbpather.h" file is available via the "pthfd" namespace.
 

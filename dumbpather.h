@@ -175,22 +175,17 @@ namespace pthfd {
 			u_4b m_allocated; u_4b m_size; T* m_buf;
 			__forceinline void capacity(u_4b cap) {
 				if(m_allocated < cap) {
-					u_4b newAllocated = (cap>>1) + cap + 16;
-					m_buf = reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(m_buf), newAllocated * sizeof(T)));
-					while (!m_buf) m_buf = reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(m_buf), newAllocated * sizeof(T)));
-					m_allocated = newAllocated;
+					m_allocated = (cap >> 1) + cap + 16;
+					do m_buf = reinterpret_cast<T*>( realloc(reinterpret_cast<void*>(m_buf), m_allocated * sizeof(T))  ); 
+					while(!m_buf);
 				}
 			}
 		public:
-			CVector() : m_size(0) {
-				m_allocated = 8;
-				m_buf = nullptr;
-				while (!m_buf) m_buf = reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(m_buf), 8 * sizeof(T)));
-			}
-			~CVector() { free(m_buf); }
+			__forceinline ~CVector() { free(m_buf); }
+			__forceinline CVector() : m_size(0) { capacity(0); }
 			__forceinline void Clear() { m_size = 0; }	// see warning above
 			__forceinline void Resize(u_4b s) { capacity(s); m_size = s; }
-			__forceinline void PushBack(const T& t) { capacity(m_size + 1); m_buf[m_size++] = t; }
+			__forceinline void PushBack(const T& t) noexcept { capacity(m_size + 1); m_buf[m_size++] = t; }
 			__forceinline u_4b Size() const { return m_size; }
 			__forceinline T& operator[](u_4b i) { return m_buf[i]; }
 		};
@@ -300,7 +295,7 @@ namespace pthfd {
 				return pathNode;
 			}
 		public:
-			CPathNodePool(u_4b _typicalAdjacent)
+			__forceinline CPathNodePool(u_4b _typicalAdjacent)
 				: firstBlock(0), blocks(0), nAllocated(0), nAvailable(0) {
 				freeMemSentinel.InitSentinel();
 				cacheCap = CACHBLOCK * _typicalAdjacent;
@@ -311,7 +306,7 @@ namespace pthfd {
 				hashTable = reinterpret_cast<CPathNode**>(calloc(HashSize(), sizeof(CPathNode*)));
 				blocks = firstBlock = NewBlock();
 			}
-			~CPathNodePool() {
+			__forceinline ~CPathNodePool() {
 				Clear();
 				free(firstBlock);
 				free(cache);
@@ -467,7 +462,6 @@ namespace pthfd {
 				top->heapIndex = MAXIMAL;
 				return top;
 			}
-
 		};
 		//======================================================================
 		CPathNodePool pathNodePool_;
@@ -488,6 +482,16 @@ namespace pthfd {
 		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
+			#define SET_LINE_NEGIBORS(typ) \
+						if (stepX < map_size_) {\
+							if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });\
+							else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });\
+						}
+			#define SET_DIAG_NEGIBORS(typ) \
+						if (stepX < map_size_) {\
+							if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });\
+							else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });\
+						}
 			u_4b stepX, stepY, X = state % map_size_;
 			//----------------------------------------------------------------------
 			stepY = (state / map_size_) - 1;
@@ -495,34 +499,13 @@ namespace pthfd {
 				stepX = --X;
 				i_1b*& line = map_cells_[stepY];
 				u_4b indx = (map_size_ * stepY) + stepX;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_DIAG, indx });
-						else
-							neighbors->PushBack({ FAST_DIAG, indx });
-					}
-				}
+				SET_DIAG_NEGIBORS(line[stepX]);
 				++stepX;
 				++indx;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_LINE, indx });
-						else
-							neighbors->PushBack({ FAST_LINE, indx });
-					}
-				}
+				SET_LINE_NEGIBORS(line[stepX]);
 				++stepX;
 				++indx;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_DIAG, indx });
-						else
-							neighbors->PushBack({ FAST_DIAG, indx });
-					}
-				}
+				SET_DIAG_NEGIBORS(line[stepX]);
 			}
 			//----------------------------------------------------------------------
 			++stepY;
@@ -530,24 +513,10 @@ namespace pthfd {
 				stepX = X;
 				i_1b*& line = map_cells_[stepY];
 				u_4b indx = (map_size_ * stepY) + stepX;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_LINE, indx });
-						else
-							neighbors->PushBack({ FAST_LINE, indx });
-					}
-				}
+				SET_LINE_NEGIBORS(line[stepX]);
 				stepX += 2;
 				indx += 2;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_LINE, indx });
-						else
-							neighbors->PushBack({ FAST_LINE, indx });
-					}
-				}
+				SET_LINE_NEGIBORS(line[stepX]);
 			}
 			//----------------------------------------------------------------------
 			++stepY;
@@ -555,35 +524,16 @@ namespace pthfd {
 				stepX = X;
 				i_1b*& line = map_cells_[stepY];
 				u_4b indx = (map_size_ * stepY) + stepX;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_DIAG, indx });
-						else
-							neighbors->PushBack({ FAST_DIAG, indx });
-					}
-				}
+				SET_DIAG_NEGIBORS(line[stepX]);
 				++stepX;
 				++indx;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_LINE, indx });
-						else
-							neighbors->PushBack({ FAST_LINE, indx });
-					}
-				}
+				SET_LINE_NEGIBORS(line[stepX]);
 				++stepX;
 				++indx;
-				if (stepX < map_size_) {
-					if (line[stepX] != TerrainType::BLOKABLE) {
-						if (line[stepX] == TerrainType::SLOWABLE)
-							neighbors->PushBack({ SLOW_DIAG, indx });
-						else
-							neighbors->PushBack({ FAST_DIAG, indx });
-					}
-				}
+				SET_DIAG_NEGIBORS(line[stepX]);
 			}
+			#undef SET_LINE_NEGIBORS
+			#undef SET_DIAG_NEGIBORS
 		}
 		//======================================================================
 		__forceinline void Achieved(CPathNode* node, u_4b start, u_4b end, CVector<u_4b>* _path) {

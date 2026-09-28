@@ -2,6 +2,10 @@
 
 This header-only library was created as a more basic implementation of MicroPather (https://github.com/leethomason/MicroPather).
 The entire interface of the "dumbpather.h" file is available via the "pthfd" namespace.
+
+* Removed path caching (decided it was simpler to delegate this to a `CPathManager` or similar).
+* Switched all calculations to integer types. * Eliminated the need to implement a graph.
+* Replaced all references to `void` with `SPoint2u`.
 ________________________________________________________________________________________________________________________________
 pthfd::TerrainType
     WALKABLE - int8_t num for map data matrix

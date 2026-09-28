@@ -103,8 +103,7 @@ namespace pthfd {
 	public:
 		CPathArray() : array_(nullptr), length_(0) {}
 		~CPathArray() { if (length_) delete[] array_; }
-		template <std::integral IntType>
-		__forceinline SPoint2u& operator[](IntType i) const { return array_[i]; }
+		__forceinline SPoint2u& operator[](u_4b i) { return array_[i]; }
 		__forceinline u_4b Length() const { return length_; }
 		__forceinline void Resize(u_4b array_length) {
 			if (array_length == length_) return;
@@ -151,13 +150,18 @@ namespace pthfd {
 			u_4b m_allocated; u_4b m_size; T* m_buf;
 			__forceinline void capacity(u_4b cap) {
 				if(m_allocated < cap) {
-					u_4b newAllocated = (cap<<1) + cap + 16;
+					u_4b newAllocated = (cap>>1) + cap + 16;
 					m_buf = reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(m_buf), newAllocated * sizeof(T)));
+					while (!m_buf) m_buf = reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(m_buf), newAllocated * sizeof(T)));
 					m_allocated = newAllocated;
 				}
 			}
 		public:
-			CVector() : m_allocated(8), m_size(0) { m_buf = reinterpret_cast<T*>(malloc(8*sizeof(T))); }
+			CVector() : m_size(0) {
+				m_allocated = 8;
+				m_buf = nullptr;
+				while (!m_buf) m_buf = reinterpret_cast<T*>(realloc(reinterpret_cast<void*>(m_buf), 8 * sizeof(T)));
+			}
 			~CVector() { free(m_buf); }
 			__forceinline void Clear() { m_size = 0; }	// see warning above
 			__forceinline void Resize(u_4b s) { capacity(s); m_size = s; }
@@ -446,7 +450,6 @@ namespace pthfd {
 		CPathPool	pathNodePool_;
 		CVector< StateCost >	statesCostVec_;	// local to Search, but put here to reduce memory allocation
 		CVector< NodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
-		CVector< u_4b >			costsVec_;
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		//======================================================================
@@ -711,7 +714,6 @@ namespace pthfd {
 		__forceinline void PrintCacheState() {
 			std::cout << "PathFinder Cache :"
 				<< "\n\t Head: " << sizeof(*this)
-				<< "\n\t costsVec_:      " << sizeof(u_4b) * costsVec_.Size()
 				<< "\n\t pathNodePool_:  " << pathNodePool_.GetCacheSize()
 				<< "\n\t nodesCostVec_:  " << sizeof(NodeCost) * nodesCostVec_.Size()
 				<< "\n\t stateCostVec_: " << sizeof(StateCost) * statesCostVec_.Size()

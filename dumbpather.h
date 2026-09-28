@@ -14,14 +14,14 @@ Use:
 			{ unit_start_XY_position },
 			{ unit_end_XY_position }
 		};
-		u_1b** MapCellsMatrix =  Map.getCellsMatix();
+		i_1b** MapCellsMatrix =  Map.getCellsMatix();
 		u_2b   MapSize		  =  Map.getSize();
 
 		pthfd::CDumbPather PathManager;
 		pthfd::CPathArray UnitFindedPath;
 
 		PathManager.SetByteMap( MapCellsMatrix, MapSize );
-		PathManager.FindPath(points, &UnitFindedPath);
+		PathManager.FindPath( points, &UnitFindedPath );
 
 		for(int i=0; i<UnitFindedPath.Length())
 			SomeStepProcedure(UnitFindedPath[i]);
@@ -101,8 +101,34 @@ namespace pthfd {
 		SPoint2u* array_;
 		u_4b length_;
 	public:
-		CPathArray() : array_(nullptr), length_(0) {}
 		~CPathArray() { if (length_) delete[] array_; }
+		CPathArray() : array_(nullptr), length_(0) {}
+		CPathArray(const CPathArray& other) {
+			this->length_ = other.length_;
+			this->Resize(this->length_);
+			memcpy(this->array_, other.array_,other.length_ * sizeof(SPoint2u));
+		}
+		CPathArray(CPathArray&& other) noexcept {
+			if (length_) delete[] array_;
+			this->array_ = other.array_;
+			other.array_ = nullptr;
+			this->length_ = other.length_;
+			other.length_ = 0;
+		}
+		CPathArray& operator=(const CPathArray& other) {
+			this->length_ = other.length_;
+			this->Resize(this->length_);
+			memcpy(this->array_, other.array_, other.length_ * sizeof(SPoint2u));
+			return *this;
+		}
+		CPathArray& operator=(CPathArray&& other) noexcept {
+			if (length_) delete[] array_;
+			this->array_ = other.array_;
+			other.array_ = nullptr;
+			this->length_ = other.length_;
+			other.length_ = 0;
+			return *this;
+		}
 		__forceinline SPoint2u& operator[](u_4b i) { return array_[i]; }
 		__forceinline u_4b Length() const { return length_; }
 		__forceinline void Resize(u_4b array_length) {
@@ -116,7 +142,6 @@ namespace pthfd {
 			array_ = new SPoint2u[array_length];
 			length_ = array_length;
 		}
-
 	};
 	class CDumbPather final {
 	private:
@@ -135,11 +160,11 @@ namespace pthfd {
 		};
 		//======================================================================
 		class CPathNode;
-		struct NodeCost final {
+		struct SNodeCost final {
 			CPathNode* node;
 			u_4b cost;
 		};
-		struct StateCost final {
+		struct SStateCost final {
 			u_4b cost;	//< The cost to the state. Use MAXIMAL for infinite cost.
 			u_4b state;	//< The state as a u_4b
 		};
@@ -222,7 +247,7 @@ namespace pthfd {
 				totalCost = (costStart < MAXIMAL && estToGoal < MAXIMAL) ? costStart + estToGoal : MAXIMAL;
 			}
 		};
-		class CPathPool final {
+		class CPathNodePool final {
 		private:
 			struct Block {
 				Block* nextBlock;
@@ -237,7 +262,7 @@ namespace pthfd {
 			Block*		firstBlock;
 			Block*		blocks;
 
-			NodeCost*	cache;
+			SNodeCost*	cache;
 			i_4b		cacheCap;
 			i_4b		cacheSize;
 
@@ -275,18 +300,18 @@ namespace pthfd {
 				return pathNode;
 			}
 		public:
-			CPathPool(u_4b _typicalAdjacent)
+			CPathNodePool(u_4b _typicalAdjacent)
 				: firstBlock(0), blocks(0), nAllocated(0), nAvailable(0) {
 				freeMemSentinel.InitSentinel();
 				cacheCap = CACHBLOCK * _typicalAdjacent;
 				cacheSize = 0;
-				cache = reinterpret_cast<NodeCost*>(malloc(cacheCap * sizeof(NodeCost)));
+				cache = reinterpret_cast<SNodeCost*>(malloc(cacheCap * sizeof(SNodeCost)));
 				hashShift = 3;	// 8 (only useful for stress testing) 
 				while (HashSize() < CACHBLOCK) ++hashShift;
 				hashTable = reinterpret_cast<CPathNode**>(calloc(HashSize(), sizeof(CPathNode*)));
 				blocks = firstBlock = NewBlock();
 			}
-			~CPathPool() {
+			~CPathNodePool() {
 				Clear();
 				free(firstBlock);
 				free(cache);
@@ -305,7 +330,6 @@ namespace pthfd {
 				if (nAllocated > 0) {
 					freeMemSentinel.next = &freeMemSentinel;
 					freeMemSentinel.prev = &freeMemSentinel;
-
 					memset(hashTable, 0, sizeof(CPathNode*) * HashSize());
 					for (u_4b i = 0; i < CACHBLOCK; ++i) {
 						freeMemSentinel.AddBefore(&firstBlock->pathNode[i]);
@@ -337,7 +361,7 @@ namespace pthfd {
 				}
 				return root;
 			}
-			__forceinline Bool PushCache(const NodeCost* nodes, i_4b nNodes, i_4b* start) {
+			__forceinline Bool PushCache(const SNodeCost* nodes, i_4b nNodes, i_4b* start) {
 				*start = -1;
 				if (nNodes + cacheSize <= cacheCap) {
 					for (i_4b i = 0; i < nNodes; ++i) {
@@ -349,8 +373,8 @@ namespace pthfd {
 				}
 				return false;
 			}
-			__forceinline void GetCache(i_4b start, i_4b nNodes, NodeCost* nodes) const {
-				memcpy(nodes, &cache[start], sizeof(NodeCost) * nNodes);
+			__forceinline void GetCache(i_4b start, i_4b nNodes, SNodeCost* nodes) {
+				memcpy(nodes, &cache[start], sizeof(SNodeCost) * nNodes);
 			}
 			__forceinline void AllStates(u_4b frame_, CVector< u_4b >* stateVec) {
 				for (Block* b = blocks; b; b = b->nextBlock) {
@@ -362,12 +386,12 @@ namespace pthfd {
 			}
 			__forceinline u_4b GetCacheSize() {
 				return (
-					(sizeof(NodeCost) * cacheCap) +
+					(sizeof(SNodeCost) * cacheCap) +
 					(sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1))
 				);
 			}
 		};
-		class COpenQueue final {
+		class CQuadTreeQueue final {
 		private:
 			CVector<CPathNode*> heap_;
 			__forceinline void SiftUp(u_4b put_indx) {
@@ -415,8 +439,8 @@ namespace pthfd {
 			}
 		public:
 			__forceinline void Update(CPathNode * n, u_4b oldCost) {
-					if (n->totalCost < oldCost) SiftUp(n->heapIndex);
-					else SiftDown(n->heapIndex);
+					if (n->totalCost > oldCost) SiftDown(n->heapIndex);
+					else SiftUp(n->heapIndex);
 			}
 			__forceinline void Clear() { heap_.Clear(); }
 			__forceinline void Push(CPathNode* n) {
@@ -446,10 +470,9 @@ namespace pthfd {
 
 		};
 		//======================================================================
-
-		CPathPool	pathNodePool_;
-		CVector< StateCost >	statesCostVec_;	// local to Search, but put here to reduce memory allocation
-		CVector< NodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
+		CPathNodePool pathNodePool_;
+		CVector< SStateCost >	statesCostVec_;	// local to Search, but put here to reduce memory allocation
+		CVector< SNodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		//======================================================================
@@ -463,7 +486,7 @@ namespace pthfd {
 			return ( (stateStart > stateEnd ? stateStart - stateEnd : stateEnd - stateStart) +
 				(sX > eX ? sX - eX : eX - sX)) << 7;
 		}
-		__forceinline void GetAdjacentCost(u_4b state, CVector<StateCost>* neighbors) {
+		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
 			u_4b stepX, stepY, X = state % map_size_;
 			//----------------------------------------------------------------------
@@ -590,7 +613,7 @@ namespace pthfd {
 				}
 			}
 		}
-		__forceinline void Environs(CPathNode* mpather_node, CVector<NodeCost>* pNodeCost) {
+		__forceinline void Environs(CPathNode* mpather_node, CVector<SNodeCost>* pNodeCost) {
 			if (mpather_node->numAdjacent == 0) {
 				pNodeCost->Resize(0);
 			}
@@ -601,8 +624,8 @@ namespace pthfd {
 				mpather_node->numAdjacent = statesCostVec_.Size();
 				if (mpather_node->numAdjacent > 0) {
 					const u_4b stateCostVecSize = statesCostVec_.Size();
-					const StateCost* stateCostVecPtr = &statesCostVec_[0];
-					NodeCost* pNodeCostPtr = &(*pNodeCost)[0];
+					const SStateCost* stateCostVecPtr = &statesCostVec_[0];
+					SNodeCost* pNodeCostPtr = &(*pNodeCost)[0];
 					for (u_4b i = 0; i < stateCostVecSize; ++i) {
 						u_4b state = stateCostVecPtr[i].state;
 						pNodeCostPtr[i].cost = stateCostVecPtr[i].cost;
@@ -616,7 +639,7 @@ namespace pthfd {
 			}
 			else {
 				pNodeCost->Resize(mpather_node->numAdjacent);
-				NodeCost* pNodeCostPtr = &(*pNodeCost)[0];
+				SNodeCost* pNodeCostPtr = &(*pNodeCost)[0];
 				pathNodePool_.GetCache(mpather_node->cacheIndex, mpather_node->numAdjacent, pNodeCostPtr);
 				for (i_4b i = 0; i < mpather_node->numAdjacent; ++i) {
 					CPathNode* pNode = pNodeCostPtr[i].node;
@@ -631,7 +654,7 @@ namespace pthfd {
 			total_cost_ = 0;
 			if (startNode == endNode) return AT_THE_END;
 			++finder_frame_;
-			COpenQueue open;
+			CQuadTreeQueue open;
 			CPathNode *node, *child;
 			u_4b oldCost, newCost;
 			open.Push(
@@ -658,7 +681,7 @@ namespace pthfd {
 						if (child->OpenFlag || child->CloseFlag) {
 							newCost = node->costStart + nodesCostVec_[i].cost;
 							if (newCost < child->costStart) {
-								oldCost = node->totalCost;
+								oldCost = child->totalCost;
 								child->parent = node;
 								child->costStart = newCost;
 								child->estToGoal = GetEstimateCost(child->state, endNode);
@@ -679,17 +702,20 @@ namespace pthfd {
 		}
 	public:
 		~CDumbPather() {}
-		CDumbPather() : pathNodePool_(8), finder_frame_(0), map_cells_(nullptr), map_size_(0) {}
-		
+		CDumbPather() : map_cells_(nullptr), map_size_(0), pathNodePool_(8), finder_frame_(0),  total_cost_(0) {}
+		CDumbPather(CDumbPather&&) = delete;
+		CDumbPather(const CDumbPather&) = delete;
+		CDumbPather& operator=(CDumbPather&&) = delete;
+		CDumbPather& operator=(const CDumbPather&) = delete;
+
 		__forceinline void FindPath(SPoint2u(&path_points)[2], CPathArray* path_segments) {
 			SPoint2u& start = path_points[0];
 			SPoint2u& end   = path_points[1];
 			path_segments->Resize(0);
-			{
-				Bool end_unvalid   = !(end.y   < map_size_ && end.x   < map_size_ ? map_cells_[ end.y ][ end.x ] != TerrainType::BLOKABLE : false);
-				Bool start_unvalid = !(start.y < map_size_ && start.x < map_size_ ? map_cells_[start.y][start.x] != TerrainType::BLOKABLE : false);
-				if (start_unvalid || end_unvalid) return;
-			}
+			Bool unvalid = 
+				( (end.y   < map_size_ && end.x   < map_size_)? map_cells_[ end.y ][ end.x ] == TerrainType::BLOKABLE : true ) &&
+				( (start.y < map_size_ && start.x < map_size_)? map_cells_[start.y][start.x] == TerrainType::BLOKABLE : true );
+			if(unvalid) return;
 			CVector<u_4b> pathNodes;
 			u_4b frstNode = map_size_ * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x),
 				lastNode = map_size_ * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
@@ -713,10 +739,11 @@ namespace pthfd {
 #ifdef _IOSTREAM_
 		__forceinline void PrintCacheState() {
 			std::cout << "PathFinder Cache :"
+				<< "\n\t LastPath_TotalCost: " << this->total_cost_
 				<< "\n\t Head: " << sizeof(*this)
 				<< "\n\t pathNodePool_:  " << pathNodePool_.GetCacheSize()
-				<< "\n\t nodesCostVec_:  " << sizeof(NodeCost) * nodesCostVec_.Size()
-				<< "\n\t stateCostVec_: " << sizeof(StateCost) * statesCostVec_.Size()
+				<< "\n\t nodesCostVec_:  " << sizeof(SNodeCost) * nodesCostVec_.Size()
+				<< "\n\t stateCostVec_: " << sizeof(SStateCost) * statesCostVec_.Size()
 				<< std::endl;
 		}
 #endif

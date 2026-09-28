@@ -275,7 +275,9 @@ namespace pthfd {
 				else { hashTable[key] = root; }
 			}
 			__forceinline Block* NewBlock() {
-				Block* block = reinterpret_cast<Block*>(malloc(sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1)));
+				Block* block;
+				do block = reinterpret_cast<Block*>(malloc(sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1))); 
+				while (!block);
 				block->nextBlock = 0;
 				nAvailable += CACHBLOCK;
 				for (u_4b i = 0; i < CACHBLOCK; ++i)
@@ -379,11 +381,15 @@ namespace pthfd {
 					}
 				}
 			}
-			__forceinline u_4b GetCacheSize() {
-				return (
-					(sizeof(SNodeCost) * cacheCap) +
-					(sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1))
-				);
+			__forceinline u_4b AllocatedNodes() const { return nAllocated; }
+			__forceinline u_4b AvailableNodes() const { return nAvailable; }
+			__forceinline u_4b HashTableBytes() const { return sizeof(CPathNode*) * (1 << hashShift); }
+			__forceinline u_4b CacheBytes()     const { return sizeof(SNodeCost) * static_cast<u_4b>(cacheCap); }
+			__forceinline u_4b BlocksBytes()    const {
+				u_4b total = 0;
+				for (Block* b = blocks; b; b = b->nextBlock)
+					total += sizeof(Block) + sizeof(CPathNode) * (CACHBLOCK - 1);
+				return total;
 			}
 		};
 		class CQuadTreeQueue final {
@@ -651,6 +657,17 @@ namespace pthfd {
 			return NO_SOLUTION;
 		}
 	public:
+		struct CacheStats final {
+			u_4b selfBytes;          // sizeof(CDumbPather)
+			u_4b costsVecBytes;      // sizeof(u_4b) * costsVec_.Size()
+			u_4b stateCostVecBytes;  // sizeof(StateCost) * statesCostVec_.Size()
+			u_4b nodeCostVecBytes;   // sizeof(NodeCost) * nodesCostVec_.Size()
+			u_4b poolCacheBytes;     // cache в CPathPool
+			u_4b poolBlocksBytes;    // все Block'и
+			u_4b poolHashBytes;      // hashTable
+			u_4b poolAllocated;      // nAllocated
+			u_4b poolAvailable;      // nAvailable
+		};
 		~CDumbPather() {}
 		CDumbPather() : map_cells_(nullptr), map_size_(0), pathNodePool_(8), finder_frame_(0),  total_cost_(0) {}
 		CDumbPather(CDumbPather&&) = delete;
@@ -686,17 +703,18 @@ namespace pthfd {
 			pathNodePool_.Clear();
 			finder_frame_ = 0;
 		}
-#ifdef _IOSTREAM_
-		__forceinline void PrintCacheState() {
-			std::cout << "PathFinder Cache :"
-				<< "\n\t LastPath_TotalCost: " << this->total_cost_
-				<< "\n\t Head: " << sizeof(*this)
-				<< "\n\t pathNodePool_:  " << pathNodePool_.GetCacheSize()
-				<< "\n\t nodesCostVec_:  " << sizeof(SNodeCost) * nodesCostVec_.Size()
-				<< "\n\t stateCostVec_: " << sizeof(SStateCost) * statesCostVec_.Size()
-				<< std::endl;
+		__forceinline CacheStats GetCacheStats() const {
+			return CacheStats{
+				static_cast<u_4b>(sizeof(CDumbPather)),
+				static_cast<u_4b>(sizeof(SStateCost) * statesCostVec_.Size()),
+				static_cast<u_4b>(sizeof(SNodeCost) * nodesCostVec_.Size()),
+				pathNodePool_.CacheBytes(),
+				pathNodePool_.BlocksBytes(),
+				pathNodePool_.HashTableBytes(),
+				pathNodePool_.AllocatedNodes(),
+				pathNodePool_.AvailableNodes()
+			};
 		}
-#endif
 	};
 };
 

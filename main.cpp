@@ -162,7 +162,21 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 						<< (point.y > 99 ? "" : (point.y > 9 ? " " : "  ")) << point.y << " } B["
 						<< static_cast<i_4b>(GV.button) << "]; CELL[ " << Map.cell[point.x][point.y] << "]"
 						<< std::endl;
-					Pth.PrintCacheState();
+					pthfd::CDumbPather::CacheStats cach = Pth.GetCacheStats();
+
+					std::cout << "CDumbPather cache state:\n"
+						<< "  sizeof(CDumbPather)     : " << cach.selfBytes << '\n'
+						<< "  costsVec_               : " << cach.costsVecBytes << '\n'
+						<< "  statesCostVec_          : " << cach.stateCostVecBytes << '\n'
+						<< "  nodesCostVec_           : " << cach.nodeCostVecBytes << '\n'
+						<< "  pathNodePool_ cache     : " << cach.poolCacheBytes << '\n'
+						<< "  pathNodePool_ blocks    : " << cach.poolBlocksBytes << '\n'
+						<< "  pathNodePool_ hashTable : " << cach.poolHashBytes << '\n'
+						<< "  nodes allocated/free    : " << cach.poolAllocated << '/' << cach.poolAvailable << '\n'
+						<< "  total (approx)          : "
+						<< (cach.selfBytes + cach.costsVecBytes + cach.stateCostVecBytes + cach.nodeCostVecBytes
+							+ cach.poolCacheBytes + cach.poolBlocksBytes + cach.poolHashBytes) << '\n';
+
 				}
 			}
 			glPushMatrix();

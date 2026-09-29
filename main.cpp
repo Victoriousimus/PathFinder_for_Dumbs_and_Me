@@ -127,7 +127,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 		Pth.SetByteMap(Map.cell, Map.size_);
 
 		start_end_path[0] = { 52, 119 };
-		start_end_path[1] = { 62, 121 };
+		start_end_path[1] = { 206, 90 };
 		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 1);
 
 		while (!Win.window_close()) {

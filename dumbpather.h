@@ -49,7 +49,7 @@ Use:
 #endif
 
 #define MAXIMAL 0x7FFFFFFFu
-#define CACHBLOCK 128
+#define CACHBLOCK 512
 
 #ifdef DUMBPATHER_TYPES
 	#ifdef __khrplatform_h_

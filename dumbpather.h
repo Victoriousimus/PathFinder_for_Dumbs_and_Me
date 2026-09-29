@@ -38,6 +38,7 @@ Use:
 	#else // !DUMBPATHER_DBGOUT
 		#define dbg_out(s)
 		#define dbg_foo(foo)
+		#define dbg_prc(fnc, s)
 	#endif // !DUMBPATHER_DBGOUT
 #else // !_DEBUG
 	#define dbg_out(s)
@@ -111,7 +112,7 @@ namespace pthfd {
 		u_4b length_;
 	public:
 		~CPathArray() { 
-			dbg_out("CALL DESTRUCTOR [ CPathArray ]");
+			dbg_out("CALL DESTRUCTOR [ ~CPathArray ]");
 			if (length_) delete[] array_; 
 		}
 		CPathArray() : array_(nullptr), length_(0) {
@@ -200,7 +201,7 @@ namespace pthfd {
 			}
 		public:
 			__forceinline ~CVector() {
-				dbg_out("CALL DESTRUCTOR [ CVector ]");
+				dbg_out("CALL DESTRUCTOR [ ~CVector ]");
 				free(m_buf);
 			}
 			__forceinline CVector() : m_size(0) {
@@ -331,7 +332,7 @@ namespace pthfd {
 				blocks = firstBlock = NewBlock();
 			}
 			__forceinline ~CPathNodePool() {
-				dbg_out("CALL DESTRUCTOR [ CPathNodePool ]");
+				dbg_out("CALL DESTRUCTOR [ ~CPathNodePool ]");
 				Clear();
 				free(firstBlock);
 				free(cache);
@@ -629,6 +630,7 @@ namespace pthfd {
 			}
 		}
 		__forceinline i_4b Search(u_4b startNode, u_4b endNode, CVector< u_4b >* path) {
+			dbg_out("=====================[    BEGIN Search()    ]=====================");
 			path->Clear();
 			total_cost_ = 0;
 			if (startNode == endNode) return AT_THE_END;
@@ -649,6 +651,7 @@ namespace pthfd {
 				if (node->state == endNode) {
 					total_cost_ = node->costStart;
 					Achieved(node, startNode, endNode, path);
+					dbg_out("=====================[  IS_SLOVED Search()  ]=====================");
 					return IS_SOLVED;
 				}
 				else {
@@ -677,6 +680,7 @@ namespace pthfd {
 					}
 				}
 			}
+			dbg_out("=====================[ NO_SOLUTION Search() ]=====================");
 			return NO_SOLUTION;
 		}
 	public:
@@ -692,10 +696,10 @@ namespace pthfd {
 			u_4b poolAvailable;      // nAvailable
 		};
 		~CDumbPather() {
-			dbg_out("CALL DESTRUCTOR [ CacheStats ]");
+			dbg_out("CALL DESTRUCTOR [ ~CDumbPather ]");
 		}
 		CDumbPather() : map_cells_(nullptr), map_size_(0), pathNodePool_(8), finder_frame_(0),  total_cost_(0) {
-			dbg_out("CALL CONSTRUCTOR [ CacheStats ]");
+			dbg_out("CALL CONSTRUCTOR [ CDumbPather ]");
 		}
 		CDumbPather(CDumbPather&&) = delete;
 		CDumbPather(const CDumbPather&) = delete;
@@ -703,18 +707,23 @@ namespace pthfd {
 		CDumbPather& operator=(const CDumbPather&) = delete;
 
 		__forceinline void FindPath(SPoint2u(&path_points)[2], CPathArray* path_segments) {
+			dbg_out("=====================[  BEGIN FindPath()  ]=====================");
 			SPoint2u& start = path_points[0];
 			SPoint2u& end   = path_points[1];
-			path_segments->Resize(0);
-			Bool unvalid = 
+			path_segments->Resize(0);		 
+			Bool unvalid = 					 
 				( (end.y   < map_size_ && end.x   < map_size_)? map_cells_[ end.y ][ end.x ] == TerrainType::BLOKABLE : true ) &&
 				( (start.y < map_size_ && start.x < map_size_)? map_cells_[start.y][start.x] == TerrainType::BLOKABLE : true );
-			if(unvalid) return;
+			if (unvalid) {
+				dbg_out("=====================[ NOT_END FindPath() ]=====================");
+				return;
+			}
 			CVector<u_4b> pathNodes;
 			u_4b frstNode = map_size_ * static_cast<u_4b>(start.y) + static_cast<u_4b>(start.x),
 				lastNode = map_size_ * static_cast<u_4b>(end.y) + static_cast<u_4b>(end.x);
 			i_4b result = Search(frstNode, lastNode, &pathNodes);
 			if (result == IS_SOLVED) {
+				dbg_out("=====================[IS_SOLVED FindPath()]=====================");
 				path_segments->Resize(pathNodes.Size());
 				for (u_4b i = 0; i < path_segments->Length(); ++i) {
 					(*path_segments)[i] = SPoint2u{
@@ -723,12 +732,15 @@ namespace pthfd {
 					};
 				}
 			}
+			dbg_out("=====================[   END FindPath()   ]=====================");
 		}
 		__forceinline void SetByteMap(i_1b** map_data, u_2b map_size) {
+			dbg_out("=====================[  BEGIN SetByteMap() ]=====================");
 			map_size_ = static_cast<u_4b>(map_size);
 			map_cells_ = map_data;
 			pathNodePool_.Clear();
 			finder_frame_ = 0;
+			dbg_out("=====================[   END SetByteMap()  ]=====================");
 		}
 		__forceinline CacheStats GetCacheStats() const {
 			return CacheStats{

@@ -9,6 +9,8 @@
 #define NOMINMAX
 #define DUMBPATHER_TYPES
 #define DUMBPATHER_DBGOUT
+#define PATH_TEST_1_ON
+//#define PATH_TEST_2_ON
 
 #include <iostream>
 #include <windows.h>

@@ -64,6 +64,7 @@ static void DrawQuad(SPoint2u& pos, f_4b(&quad)[3], f_4b(&line)[3], i_4b size) {
 }
 
 static void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoint2u(&ise)[2], pthfd::CPathArray* path, i_4b iter_count) {
+#ifdef PATH_TEST_1_ON
 	f_8b accum,find_time;
 	accum = 0.0f;
 	find_time = 0.0f;
@@ -81,7 +82,8 @@ static void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoi
 		<< path_points[1].x << "; y" << path_points[1].y << " )  #" << iter_count << "  [ "
 		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
 		<< std::endl;
-
+#endif // PATH_TEST_1_ON
+#ifdef PATH_TEST_2_ON
 	accum = 0.0f;
 	find_time = 0.0f;
 	path_points[0] = ise[1];
@@ -97,6 +99,7 @@ static void PathTimeTestProcedure(CWindow& win, pthfd::CDumbPather& finder, SPoi
 		<< path_points[1].x << "; y" << path_points[1].y << " )  #" << iter_count << "  [ "
 		<< static_cast<i_4b>(accum) << " s. ]: mid_time = " << accum / iter_count
 		<< std::endl;
+#endif // PATH_TEST_2_ON
 }
 
 i_4b main(i_4b argc, c_wrd argv[]) {
@@ -124,8 +127,8 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 		Pth.SetByteMap(Map.cell, Map.size_);
 
 		start_end_path[0] = { 52, 119 };
-		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 32);
+		start_end_path[1] = { 62, 121 };
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 1);
 
 		while (!Win.window_close()) {
 			if (GV.update) {

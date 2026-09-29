@@ -8,6 +8,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #define DUMBPATHER_TYPES
+#define DUMBPATHER_DBGOUT
 
 #include <iostream>
 #include <windows.h>

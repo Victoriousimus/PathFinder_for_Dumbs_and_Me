@@ -48,13 +48,13 @@ static void DrawQuad(SPoint2u& pos, f_4b(&quad)[3], f_4b(&line)[3], i_4b size) {
 	Y = (static_cast<f_4b>(pos.y << 1) / static_cast<f_4b>(size)) - 1.0f;
 	glLineWidth(1.0f);
 	glBegin(GL_QUADS);
-		q = 0.016;
+		q = 0.016f;
 		glColor3f(quad[0], quad[1], quad[2]);
 		glVertex2f(X-q, Y-q);
 		glVertex2f(X+q, Y-q);
 		glVertex2f(X+q, Y+q);
 		glVertex2f(X-q, Y+q);
-		q = 0.01;
+		q = 0.01f;
 		glColor3f(line[0], line[1], line[2]);
 		glVertex2f(X - q, Y - q);
 		glVertex2f(X + q, Y - q);

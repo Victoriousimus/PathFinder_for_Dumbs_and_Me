@@ -31,9 +31,19 @@ Use:
 #ifdef _CSTDLIB_
 
 #ifdef _MSC_VER
-#ifndef _DEBUG
-#pragma warning( disable : 4786 )	// Debugger truncating names.
-#pragma warning( disable : 4530 )	// Exception handler isn't used
+#ifdef _DEBUG
+	#ifdef DUMBPATHER_DBGOUT
+		#define dbg_out(s) std::cout<< s << std::endl;
+		#define dbg_foo(foo) foo
+	#else // !DUMBPATHER_DBGOUT
+		#define dbg_out(s)
+		#define dbg_foo(foo)
+	#endif // !DUMBPATHER_DBGOUT
+#else // !_DEBUG
+	#define dbg_out(s)
+	#define dbg_foo(foo)
+	#pragma warning( disable : 4786 )	// Debugger truncating names.
+	#pragma warning( disable : 4530 )	// Exception handler isn't used
 #endif // !_DEBUG
 #endif
 
@@ -71,7 +81,6 @@ Use:
 			typedef unsigned long long u_8b;
 		#endif
 	#endif
-	
 	typedef void* PMem;
 	typedef const char* c_wrd;
 	typedef char* t_wrd;
@@ -84,7 +93,7 @@ Use:
 		u_2b x;
 		u_2b y;
 	};
-#endif
+#endif//DUMBPATHER_TYPES
 
 #define SPoint2u SU2b_xy
 
@@ -101,14 +110,21 @@ namespace pthfd {
 		SPoint2u* array_;
 		u_4b length_;
 	public:
-		~CPathArray() { if (length_) delete[] array_; }
-		CPathArray() : array_(nullptr), length_(0) {}
+		~CPathArray() { 
+			dbg_out("CALL DESTRUCTOR [ CPathArray ]");
+			if (length_) delete[] array_; 
+		}
+		CPathArray() : array_(nullptr), length_(0) {
+			dbg_out("CALL CONSTRUCTOR [ CPathArray ]");
+		}
 		CPathArray(const CPathArray& other) {
+			dbg_out("CALL COPY [ CPathArray ]");
 			this->length_ = other.length_;
 			this->Resize(this->length_);
 			memcpy(this->array_, other.array_,other.length_ * sizeof(SPoint2u));
 		}
 		CPathArray(CPathArray&& other) noexcept {
+			dbg_out("CALL FORWARD [ CPathArray ]");
 			if (length_) delete[] array_;
 			this->array_ = other.array_;
 			other.array_ = nullptr;
@@ -116,12 +132,14 @@ namespace pthfd {
 			other.length_ = 0;
 		}
 		CPathArray& operator=(const CPathArray& other) {
+			dbg_out("CALL [ = ] COPY [ CPathArray ]");
 			this->length_ = other.length_;
 			this->Resize(this->length_);
 			memcpy(this->array_, other.array_, other.length_ * sizeof(SPoint2u));
 			return *this;
 		}
 		CPathArray& operator=(CPathArray&& other) noexcept {
+			dbg_out("CALL [ = ] FORWARD [ CPathArray ]");
 			if (length_) delete[] array_;
 			this->array_ = other.array_;
 			other.array_ = nullptr;
@@ -181,8 +199,14 @@ namespace pthfd {
 				}
 			}
 		public:
-			__forceinline ~CVector() { free(m_buf); }
-			__forceinline CVector() : m_size(0) { capacity(0); }
+			__forceinline ~CVector() {
+				dbg_out("CALL DESTRUCTOR [ CVector ]");
+				free(m_buf);
+			}
+			__forceinline CVector() : m_size(0) {
+				dbg_out("CALL CONSTRUCTOR [ CVector ]");
+				capacity(0);
+			}
 			__forceinline void Clear() { m_size = 0; }	// see warning above
 			__forceinline void Resize(u_4b s) { capacity(s); m_size = s; }
 			__forceinline void PushBack(const T& t) noexcept { capacity(m_size + 1); m_buf[m_size++] = t; }
@@ -252,11 +276,9 @@ namespace pthfd {
 			u_4b		nAllocated;				// number of pathnodes allocated (from Alloc())
 			u_4b		nAvailable;				// number available for allocation
 			u_4b		hashShift;
-
 			CPathNode** hashTable;
 			Block*		firstBlock;
 			Block*		blocks;
-
 			SNodeCost*	cache;
 			i_4b		cacheCap;
 			i_4b		cacheSize;
@@ -297,8 +319,8 @@ namespace pthfd {
 				return pathNode;
 			}
 		public:
-			__forceinline CPathNodePool(u_4b _typicalAdjacent)
-				: firstBlock(0), blocks(0), nAllocated(0), nAvailable(0) {
+			__forceinline CPathNodePool(u_4b _typicalAdjacent) : firstBlock(0), blocks(0), nAllocated(0), nAvailable(0) {
+				dbg_out("CALL CONSTRUCTOR [ CPathNodePool ]");
 				freeMemSentinel.InitSentinel();
 				cacheCap = CACHBLOCK * _typicalAdjacent;
 				cacheSize = 0;
@@ -309,6 +331,7 @@ namespace pthfd {
 				blocks = firstBlock = NewBlock();
 			}
 			__forceinline ~CPathNodePool() {
+				dbg_out("CALL DESTRUCTOR [ CPathNodePool ]");
 				Clear();
 				free(firstBlock);
 				free(cache);
@@ -383,7 +406,7 @@ namespace pthfd {
 			}
 			__forceinline u_4b AllocatedNodes() const { return nAllocated; }
 			__forceinline u_4b AvailableNodes() const { return nAvailable; }
-			__forceinline u_4b HashTableBytes() const { return sizeof(CPathNode*) * (1 << hashShift); }
+			__forceinline u_4b HashTableBytes() const { return sizeof(CPathNode*) * static_cast<u_4b>(1 << hashShift); }
 			__forceinline u_4b CacheBytes()     const { return sizeof(SNodeCost) * static_cast<u_4b>(cacheCap); }
 			__forceinline u_4b BlocksBytes()    const {
 				u_4b total = 0;
@@ -475,9 +498,9 @@ namespace pthfd {
 		CVector< SNodeCost  >	nodesCostVec_;	// local to Search, but put here to reduce memory allocation
 		u_4b finder_frame_; // incremented with every solve, used to determine if cached data needs to be refreshed
 		u_4b total_cost_; // incremented with every solve, used to determine if cached data needs to be refreshed
-		//======================================================================
 		u_4b map_size_;		
 		i_1b** map_cells_;
+		//======================================================================
 		__forceinline u_4b GetEstimateCost(u_4b stateStart, u_4b stateEnd) {
 			u_4b sX = stateStart % map_size_;
 			stateStart = stateStart / map_size_;
@@ -668,8 +691,12 @@ namespace pthfd {
 			u_4b poolAllocated;      // nAllocated
 			u_4b poolAvailable;      // nAvailable
 		};
-		~CDumbPather() {}
-		CDumbPather() : map_cells_(nullptr), map_size_(0), pathNodePool_(8), finder_frame_(0),  total_cost_(0) {}
+		~CDumbPather() {
+			dbg_out("CALL DESTRUCTOR [ CacheStats ]");
+		}
+		CDumbPather() : map_cells_(nullptr), map_size_(0), pathNodePool_(8), finder_frame_(0),  total_cost_(0) {
+			dbg_out("CALL CONSTRUCTOR [ CacheStats ]");
+		}
 		CDumbPather(CDumbPather&&) = delete;
 		CDumbPather(const CDumbPather&) = delete;
 		CDumbPather& operator=(CDumbPather&&) = delete;

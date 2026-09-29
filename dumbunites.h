@@ -55,15 +55,15 @@ namespace dmpu {
 				glLineWidth(1.0f);
 				glBegin(GL_QUADS);
 				glColor3f(line[0], line[1], line[2]);
-				glVertex2f(X - 0.016, Y - 0.016);
-				glVertex2f(X + 0.016, Y - 0.016);
-				glVertex2f(X + 0.016, Y + 0.016);
-				glVertex2f(X - 0.016, Y + 0.016);
+				glVertex2f(X - 0.016f, Y - 0.016f);
+				glVertex2f(X + 0.016f, Y - 0.016f);
+				glVertex2f(X + 0.016f, Y + 0.016f);
+				glVertex2f(X - 0.016f, Y + 0.016f);
 				glColor3f(quad[0], quad[1], quad[2]);
-				glVertex2f(X - 0.01, Y - 0.01);
-				glVertex2f(X + 0.01, Y - 0.01);
-				glVertex2f(X + 0.01, Y + 0.01);
-				glVertex2f(X - 0.01, Y + 0.01);
+				glVertex2f(X - 0.01f, Y - 0.01f);
+				glVertex2f(X + 0.01f, Y - 0.01f);
+				glVertex2f(X + 0.01f, Y + 0.01f);
+				glVertex2f(X - 0.01f, Y + 0.01f);
 				glEnd();
 			}
 		};

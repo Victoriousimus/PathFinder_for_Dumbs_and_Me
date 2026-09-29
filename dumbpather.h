@@ -5,7 +5,7 @@ CPathArray = Array class for finded path
 CDumbPather = understend)
 
 Use:
-	#include DUMBPATHER_TYPES
+	#define DUMBPATHER_TYPES
 	#include <cstdlib>
 	#include " [include_lib_directory] /dumbpather.h"
 

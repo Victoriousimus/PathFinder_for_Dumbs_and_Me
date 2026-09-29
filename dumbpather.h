@@ -1,14 +1,23 @@
 ﻿#pragma once
-/**********************************************************************
-SPoint2u = uint16_t x,y
-CPathArray = Array class for finded path
+/*
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+SPoint2u	= uint16_t x,y
+CPathArray	= Array class for finded path
 CDumbPather = understend)
 
 Use:
-	#define DUMBPATHER_TYPES
-	#include <cstdlib>
+	#define DUMBPATHER_TYPES		// !!!!!!!!!!!
+	#define DUMBPATHER_DBGOUT		// If you need debug out
+	#define DUMBPATHER_DEFAULT_FAST	// Select adjacent cost mode [standart = UNWOKABLE mode]
+	#define SPoint2u Point2D		// You can use any struct, if it have [x,y] freandly for [CDumbPather]
 	#include " [include_lib_directory] /dumbpather.h"
-
+	
+	struct Point2D{
+		u_2b x;
+		u_2b y;
+		* * * //You somethink interface realisation
+	}
+	    * * *
 		SomeMapClass Map;
 		SPoint2u points[2] = {
 			{ unit_start_XY_position },
@@ -24,16 +33,19 @@ Use:
 		PathManager.FindPath( points, &UnitFindedPath );
 
 		for(int i=0; i<UnitFindedPath.Length())
-			SomeStepProcedure(UnitFindedPath[i]);
-**********************************************************************/
+			Something_Procedure_With_a_Path_Points(UnitFindedPath[i]);
+
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+ */
 #ifndef PATHFINDER_FOR_DUMBS_INCLUDE
 #define PATHFINDER_FOR_DUMBS_INCLUDE
+#define Active_OUTSTREAM(text) std::cout<< text << std::endl;
 #ifdef _CSTDLIB_
 
 #ifdef _MSC_VER
 #ifdef _DEBUG
 	#ifdef DUMBPATHER_DBGOUT
-		#define dbg_out(s) std::cout<< s << std::endl;
+		#define dbg_out(s) Active_OUTSTREAM(s)
 		#define dbg_foo(foo) foo
 	#else // !DUMBPATHER_DBGOUT
 		#define dbg_out(s)
@@ -90,13 +102,53 @@ Use:
 	typedef bool Bool;
 	typedef float f_4b;
 	typedef double f_8b;
-	struct SU2b_xy {
+
+#endif//DUMBPATHER_TYPES
+
+//Select SPoint2u - you can use any struct, if it have [x,y] freandly for [CDumbPather]
+#ifndef SPoint2u
+#define SPoint2u DumbPathrer_2bytes_2D_point
+	struct DumbPathrer_2bytes_2D_point {
 		u_2b x;
 		u_2b y;
 	};
-#endif//DUMBPATHER_TYPES
+#else
+	struct SPoint2u;
+#endif // !SPoint2u
 
-#define SPoint2u SU2b_xy
+
+//Select adjacent cost mode :
+#ifdef DUMBPATHER_DEFAULT_FAST // FAST BLOK IS DEFAULT
+//=============================[    FAST BLOK IS DEFAULT   ]=============================
+#define SET_LINE_NEGIBORS(typ) if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });	\
+			else neighbors->PushBack({ FAST_LINE, indx });								}
+#define SET_DIAG_NEGIBORS(typ) if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	\
+			else neighbors->PushBack({ FAST_DIAG, indx });								}
+#else
+#ifdef DUMBPATHER_DEFAULT_SLOW
+//=============================[    SLOW BLOK IS DEFAULT   ]=============================
+#define SET_LINE_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });	\
+			else neighbors->PushBack({ SLOW_LINE, indx });								}
+#define SET_DIAG_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+		if ((typ != TerrainType::BLOKABLE))												\
+			if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });	\
+			else neighbors->PushBack({ SLOW_DIAG, indx });								}
+#endif
+//=============================[ UNWOKABLE BLOK IS DEFAULT ]=============================
+#define SET_LINE_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });			\
+	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });	}
+#define SET_DIAG_NEGIBORS(typ)	if (stepX < map_size_)	{								\
+	if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });			\
+	else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });	}
+#endif // AdjacentCost_foo_1
+
 
 namespace pthfd {
 	//======================================================================
@@ -512,16 +564,7 @@ namespace pthfd {
 		}
 		__forceinline void GetAdjacentCost(u_4b state, CVector<SStateCost>* neighbors) {
 			//For some reason unknown to me, the compiler doesn't optimize this function if it contains a loop, so I unrolled the loop manually!
-			#define SET_LINE_NEGIBORS(typ) \
-						if (stepX < map_size_) {\
-							if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_LINE, indx });\
-							else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_LINE, indx });\
-						}
-			#define SET_DIAG_NEGIBORS(typ) \
-						if (stepX < map_size_) {\
-							if (typ == TerrainType::WALKABLE) neighbors->PushBack({ FAST_DIAG, indx });\
-							else if (typ == TerrainType::SLOWABLE) neighbors->PushBack({ SLOW_DIAG, indx });\
-						}
+
 			u_4b stepX, stepY, X = state % map_size_;
 			//----------------------------------------------------------------------
 			stepY = (state / map_size_) - 1;
@@ -562,8 +605,6 @@ namespace pthfd {
 				++indx;
 				SET_DIAG_NEGIBORS(line[stepX]);
 			}
-			#undef SET_LINE_NEGIBORS
-			#undef SET_DIAG_NEGIBORS
 		}
 		//======================================================================
 		__forceinline void Achieved(CPathNode* node, u_4b start, u_4b end, CVector<u_4b>* _path) {
@@ -756,7 +797,9 @@ namespace pthfd {
 		}
 	};
 };
-
+#undef Active_OUTSTREAM
+#undef SET_LINE_NEGIBORS
+#undef SET_DIAG_NEGIBORS
 #undef CACHBLOCK
 #undef MAXIMAL
 #endif // _CSTDLIB_

@@ -2,6 +2,9 @@
 //#define SCALEF 9.0f
 //#define SCALET 0.035f
 #define SCALEF 1.0f
+#define PATH_TEST_1_ON
+#define PATH_TEST_2_ON
+
 struct mainGlobalVaribles{
 	i_2b mause_X{0};
 	i_2b mause_Y{0};
@@ -42,7 +45,7 @@ static void DrawPath(pthfd::CPathArray* path_ptr, i_4b size) {
 	}
 	glEnd();
 }
-static void DrawQuad(SPoint2u& pos, f_4b(&quad)[3], f_4b(&line)[3], i_4b size) {
+static void DrawQuad(SPoint2u& pos, const f_4b(&quad)[3], f_4b(&line)[3], i_4b size) {
 	f_4b X, Y, q;
 	X = (static_cast<f_4b>(pos.x << 1) / static_cast<f_4b>(size)) - 1.0f;
 	Y = (static_cast<f_4b>(pos.y << 1) / static_cast<f_4b>(size)) - 1.0f;
@@ -128,7 +131,7 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 
 		start_end_path[0] = { 52, 119 };
 		start_end_path[1] = { 206, 90 };
-		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 1);
+		PathTimeTestProcedure(Win,Pth,start_end_path, &path_arr, 512);
 
 		while (!Win.window_close()) {
 			if (GV.update) {
@@ -187,14 +190,8 @@ i_4b main(i_4b argc, c_wrd argv[]) {
 			if (path_arr.Length() > 0) {
 				DrawPath(&path_arr, size);
 				f_4b lineColor[3] = { 0.3f, 1.0f, 0.4f };
-				{
-					f_4b quadColor[3] = { 0.0f, 0.0f, 0.9f };
-					DrawQuad(start_end_path[0], quadColor, lineColor, size);
-				}
-				{
-					f_4b quadColor[3] = { 0.0f, 0.9f, 0.0f };
-					DrawQuad(start_end_path[1], quadColor, lineColor, size);
-				}
+				DrawQuad(start_end_path[0], { 0.0f, 0.0f, 0.9f }, lineColor, size);
+				DrawQuad(start_end_path[1], { 0.0f, 0.9f, 0.0f }, lineColor, size);
 			}
 			glPopMatrix();
 			Win.swap();
